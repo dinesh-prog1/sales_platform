@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sidebar-width: 240px;
+  --header-height: 64px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f0f4f8;
+  color: #1a1a2e;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #bfdbfe;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #93c5fd;
+}
+
+/* Sidebar */
+.sidebar {
+  background: linear-gradient(180deg, #1a237e 0%, #1565c0 100%);
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.75);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin: 2px 8px;
+  text-decoration: none;
+}
+
+.sidebar-link:hover {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+
+.sidebar-link.active {
+  background: rgba(255,255,255,0.18);
+  color: white;
+}
+
+.sidebar-link svg {
+  flex-shrink: 0;
+}
+
+/* Header */
+.top-header {
+  background: #1976d2;
+  height: var(--header-height);
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--sidebar-width);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+}
+
+/* Main content */
+.main-content {
+  margin-left: var(--sidebar-width);
+  padding-top: var(--header-height);
+  min-height: 100vh;
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  padding: 20px;
+}
+
+/* Metric card gradient */
+.metric-card-blue {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+}
+.metric-card-indigo {
+  background: linear-gradient(135deg, #3949ab 0%, #283593 100%);
+}
+.metric-card-purple {
+  background: linear-gradient(135deg, #7b1fa2 0%, #6a1b9a 100%);
+}
+.metric-card-green {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+}
+.metric-card-teal {
+  background: linear-gradient(135deg, #00695c 0%, #004d40 100%);
+}
+.metric-card-orange {
+  background: linear-gradient(135deg, #e65100 0%, #bf360c 100%);
+}
+.metric-card-red {
+  background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+}
+.metric-card-cyan {
+  background: linear-gradient(135deg, #0277bd 0%, #01579b 100%);
+}
+
+/* Table */
+.table-header {
+  background: #f8faff;
+  border-bottom: 1px solid #e8f0fe;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Welcome banner */
+.welcome-banner {
+  background: linear-gradient(135deg, #bbdefb 0%, #e3f2fd 50%, #e8eaf6 100%);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Quick access card */
+.quick-access-card {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  border-radius: 12px;
+  padding: 24px 16px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.quick-access-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(25, 118, 210, 0.35);
+}

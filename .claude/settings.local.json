@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p F:/AI-sales/backend/cmd/api F:/AI-sales/backend/cmd/worker F:/AI-sales/backend/internal/config F:/AI-sales/backend/internal/company F:/AI-sales/backend/internal/email F:/AI-sales/backend/internal/demo F:/AI-sales/backend/internal/trial F:/AI-sales/backend/internal/interest F:/AI-sales/backend/internal/analytics F:/AI-sales/backend/internal/api F:/AI-sales/backend/pkg/database F:/AI-sales/backend/pkg/queue F:/AI-sales/backend/pkg/mailer F:/AI-sales/backend/pkg/excel F:/AI-sales/backend/migrations)",
+      "Bash(mkdir -p F:/AI-sales/frontend/src/app/companies F:/AI-sales/frontend/src/app/emails F:/AI-sales/frontend/src/app/demos F:/AI-sales/frontend/src/app/trials F:/AI-sales/frontend/src/app/settings F:/AI-sales/frontend/src/components/layout F:/AI-sales/frontend/src/components/ui F:/AI-sales/frontend/src/components/charts F:/AI-sales/frontend/src/components/companies F:/AI-sales/frontend/src/lib F:/AI-sales/frontend/src/types F:/AI-sales/frontend/src/hooks F:/AI-sales/frontend/public)",
+      "Bash(go build:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(go get:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(powershell -File:*)",
+      "Bash(__NEW_LINE_48ebd4db0236153b__ exit:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

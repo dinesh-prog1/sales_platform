@@ -1,0 +1,112 @@
+import axios from 'axios'
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+
+export const api = axios.create({
+  baseURL: `${BASE_URL}/api/v1`,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+})
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const msg = err.response?.data?.error || err.message || 'Unknown error'
+    return Promise.reject(new Error(msg))
+  }
+)
+
+// Companies
+export const companiesApi = {
+  list: (params?: Record<string, string | number>) =>
+    api.get('/companies', { params }).then(r => r.data),
+
+  upload: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/companies/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+
+  get: (id: string) => api.get(`/companies/${id}`).then(r => r.data),
+
+  updateStatus: (id: string, status: string, notes?: string) =>
+    api.patch(`/companies/${id}/status`, { status, notes }).then(r => r.data),
+
+  delete: (id: string) => api.delete(`/companies/${id}`).then(r => r.data),
+
+  resetOutreach: (id: string) =>
+    api.post(`/emails/reset-outreach/${id}`).then(r => r.data),
+
+  sizeStats: () => api.get('/companies/stats/size').then(r => r.data),
+  statusStats: () => api.get('/companies/stats/status').then(r => r.data),
+  search: (q: string) => api.get('/companies/search', { params: { q } }).then(r => r.data),
+  emailSuggestions: (name: string) => api.get('/companies/emails', { params: { name } }).then(r => r.data),
+}
+
+// Emails
+export const emailsApi = {
+  list: (params?: Record<string, string | number>) =>
+    api.get('/emails', { params }).then(r => r.data),
+
+  sendManualOutreach: (data: object) =>
+    api.post('/emails/manual-outreach', data).then(r => r.data),
+  respondOutreach: (data: object) =>
+    api.post('/emails/respond-outreach', data).then(r => r.data),
+
+  stats: () => api.get('/emails/stats').then(r => r.data),
+  trend: (days = 30) => api.get('/emails/trend', { params: { days } }).then(r => r.data),
+
+  templates: () => api.get('/emails/templates').then(r => r.data),
+  updateTemplate: (type: string, data: object) =>
+    api.put(`/emails/templates/${type}`, data).then(r => r.data),
+
+  config: () => api.get('/emails/config').then(r => r.data),
+  updateConfig: (data: object) => api.put('/emails/config', data).then(r => r.data),
+  clearLogs: () => api.delete('/emails/logs').then(r => r.data),
+  departments: () => api.get('/companies/stats/size').then(r => r.data),
+}
+
+// Demos
+export const demosApi = {
+  list: (params?: Record<string, string | number>) =>
+    api.get('/demos', { params }).then(r => r.data),
+
+  create: (data: object) => api.post('/demos', data).then(r => r.data),
+  get: (id: string) => api.get(`/demos/${id}`).then(r => r.data),
+  update: (id: string, data: object) => api.put(`/demos/${id}`, data).then(r => r.data),
+  stats: () => api.get('/demos/stats').then(r => r.data),
+  publicSchedule: (data: object) => api.post('/demos/public-schedule', data).then(r => r.data),
+  book: (data: object) => api.post('/demos/book', data).then(r => r.data),
+  slots: (date: string) => api.get('/demos/slots', { params: { date } }).then(r => r.data),
+  upcoming: (params?: Record<string, string | number>) => api.get('/demos/upcoming', { params }).then(r => r.data),
+  pending: (params?: Record<string, string | number>) => api.get('/demos', { params: { ...params, status: 'pending' } }).then(r => r.data),
+  confirm: (id: string, meetingLink: string) => api.post(`/demos/${id}/confirm`, { meeting_link: meetingLink }).then(r => r.data),
+  delete: (id: string) => api.delete(`/demos/${id}`).then(r => r.data),
+}
+
+// Trials
+export const trialsApi = {
+  list: (params?: Record<string, string | number>) =>
+    api.get('/trials', { params }).then(r => r.data),
+
+  create: (data: object) => api.post('/trials', data).then(r => r.data),
+  get: (id: string) => api.get(`/trials/${id}`).then(r => r.data),
+  update: (id: string, data: object) => api.put(`/trials/${id}`, data).then(r => r.data),
+  stats: () => api.get('/trials/stats').then(r => r.data),
+}
+
+// Interest
+export const interestApi = {
+  stats: () => api.get('/interest/stats').then(r => r.data),
+  detect: (emailBody: string) =>
+    api.post('/interest/detect', { email_body: emailBody }).then(r => r.data),
+  mark: (companyId: string, interested: boolean, notes?: string) =>
+    api.post('/interest/mark', { company_id: companyId, interested, notes }).then(r => r.data),
+}
+
+// Analytics
+export const analyticsApi = {
+  dashboard: () => api.get('/analytics/dashboard').then(r => r.data),
+}
