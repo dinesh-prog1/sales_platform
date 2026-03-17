@@ -16,7 +16,8 @@
       "Bash(npm list:*)",
       "Bash(npm install:*)",
       "Bash(node generate_book.js)",
-      "Bash(find F:/AI-sales/sales_platform/src/app -type f -name *.tsx)"
+      "Bash(find F:/AI-sales/sales_platform/src/app -type f -name *.tsx)",
+      "Bash(find F:/AI-sales -name *.py)"
     ]
   }
 }
