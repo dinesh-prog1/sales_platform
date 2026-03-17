@@ -79,3 +79,40 @@ func (s *TrialService) GetExpiredTrials(ctx context.Context) ([]*models.Trial, e
 func (s *TrialService) MarkReminderSent(ctx context.Context, id string) error {
 	return s.repo.MarkReminderSent(ctx, id)
 }
+
+// HandleTrialResponse processes the "interested" / "not_interested" click from the
+// trial conversion email. Returns a map with a redirect URL or confirmation message.
+func (s *TrialService) HandleTrialResponse(ctx context.Context, req models.TrialRespondRequest) (map[string]string, error) {
+	if req.TrialID == "" {
+		return nil, fmt.Errorf("trial_id is required")
+	}
+	t, err := s.repo.GetByID(ctx, req.TrialID)
+	if err != nil {
+		return nil, err
+	}
+	if t == nil {
+		return nil, fmt.Errorf("trial not found")
+	}
+
+	switch req.Action {
+	case "interested":
+		return map[string]string{
+			"message":      "Thank you for your interest! Please complete the payment form.",
+			"redirect":     "/payment/form",
+			"trial_id":     t.ID,
+			"company_id":   t.CompanyID,
+			"company_name": t.CompanyName,
+			"email":        t.CompanyEmail,
+			"contact_person": t.BookerName,
+		}, nil
+	case "not_interested":
+		_ = s.repo.Update(ctx, t.ID, models.TrialUpdateRequest{
+			Status: models.TrialStatusDropped,
+		})
+		return map[string]string{
+			"message": "Your preference has been recorded. Thank you for trying our platform.",
+		}, nil
+	default:
+		return nil, fmt.Errorf("invalid action: %s", req.Action)
+	}
+}

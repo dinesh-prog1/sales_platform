@@ -24,8 +24,13 @@ var departmentKeywords = map[string][]string{
 	},
 	"Retail & E-commerce": {
 		"retail", "ecommerce", "e-commerce", "shop", "store", "marketplace",
-		"consumer", "fashion", "apparel", "grocery", "supermarket", "brand",
+		"consumer", "fashion", "grocery", "supermarket", "brand",
 		"fmcg", "direct-to-consumer", "d2c", "wholesale", "merchandise",
+	},
+	"Textile & Garments": {
+		"textile", "garment", "fabric", "weaving", "apparel", "clothing",
+		"spinning", "dyeing", "knitting", "readymade", "cotton", "silk",
+		"linen", "polyester", "thread",
 	},
 	"Manufacturing & Industrial": {
 		"manufacturing", "industrial", "factory", "production", "assembly",
@@ -72,14 +77,84 @@ var departmentKeywords = map[string][]string{
 	},
 }
 
-// NormalizeDepartment maps any raw industry string to one of the canonical departments.
-// Returns "Professional Services" as fallback when no match is found.
-func NormalizeDepartment(raw string) string {
-	if raw == "" {
-		return "Professional Services"
-	}
-	lower := strings.ToLower(strings.TrimSpace(raw))
+// typoCorrections maps common misspellings/typos to corrected forms
+// that the keyword-scoring can then match properly.
+var typoCorrections = map[string]string{
+	"textfile":     "textile",
+	"texile":       "textile",
+	"textiels":     "textile",
+	"heathcare":    "healthcare",
+	"helthcare":    "healthcare",
+	"fianncial":    "financial",
+	"finanical":    "financial",
+	"financail":    "financial",
+	"educaton":     "education",
+	"eductaion":    "education",
+	"manufacuring": "manufacturing",
+	"manufacring":  "manufacturing",
+	"hosptality":   "hospitality",
+	"hosiptality":  "hospitality",
+	"realestate":   "real estate",
+	"realstate":    "real estate",
+	"trasportation": "transportation",
+	"logisitcs":    "logistics",
+	"technolgy":    "technology",
+	"technlogy":    "technology",
+	"infomation":   "information",
+	"retial":       "retail",
+	"constuction":  "construction",
+	"agricuture":   "agriculture",
+}
 
+// levenshtein computes the Levenshtein edit distance between two strings.
+func levenshtein(a, b string) int {
+	la, lb := len(a), len(b)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+
+	// Use single row optimisation
+	prev := make([]int, lb+1)
+	for j := 0; j <= lb; j++ {
+		prev[j] = j
+	}
+
+	for i := 1; i <= la; i++ {
+		curr := make([]int, lb+1)
+		curr[0] = i
+		for j := 1; j <= lb; j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			ins := curr[j-1] + 1
+			del := prev[j] + 1
+			sub := prev[j-1] + cost
+			curr[j] = min3(ins, del, sub)
+		}
+		prev = curr
+	}
+	return prev[lb]
+}
+
+func min3(a, b, c int) int {
+	if a < b {
+		if a < c {
+			return a
+		}
+		return c
+	}
+	if b < c {
+		return b
+	}
+	return c
+}
+
+// keywordScore runs the keyword matching loop and returns the best department + score.
+func keywordScore(lower string) (string, int) {
 	bestDept := ""
 	bestScore := 0
 
@@ -99,9 +174,74 @@ func NormalizeDepartment(raw string) string {
 			bestDept = dept
 		}
 	}
+	return bestDept, bestScore
+}
 
-	if bestDept == "" {
-		return "Professional Services"
+// NormalizeDepartment maps any raw industry string to one of the canonical departments.
+// Uses keyword scoring first, then typo correction, then fuzzy matching.
+// Returns "Others" as fallback when no match is found.
+func NormalizeDepartment(raw string) string {
+	if raw == "" {
+		return "Others"
 	}
-	return bestDept
+	lower := strings.ToLower(strings.TrimSpace(raw))
+
+	// Remove special characters except spaces and hyphens
+	cleaned := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == ' ' || r == '-' {
+			return r
+		}
+		return -1
+	}, lower)
+	if cleaned == "" {
+		return "Others"
+	}
+
+	// Step 1: Direct keyword scoring on original input
+	if dept, score := keywordScore(cleaned); score > 0 {
+		return dept
+	}
+
+	// Step 2: Check typo corrections map and retry
+	if corrected, ok := typoCorrections[cleaned]; ok {
+		if dept, score := keywordScore(corrected); score > 0 {
+			return dept
+		}
+	}
+	// Also try without spaces for single-word typos
+	noSpaces := strings.ReplaceAll(cleaned, " ", "")
+	if corrected, ok := typoCorrections[noSpaces]; ok {
+		if dept, score := keywordScore(corrected); score > 0 {
+			return dept
+		}
+	}
+
+	// Step 3: Fuzzy matching — find closest keyword using Levenshtein distance
+	bestFuzzyDept := ""
+	bestFuzzyDist := 999
+
+	for dept, keywords := range departmentKeywords {
+		for _, kw := range keywords {
+			// Only fuzzy match keywords that are long enough (avoid false positives on "it", "ai", etc.)
+			if len(kw) < 4 {
+				continue
+			}
+			dist := levenshtein(cleaned, kw)
+			// Allow up to distance 2 for keywords >= 4 chars, or distance 1 for shorter inputs
+			maxDist := 2
+			if len(cleaned) < 5 {
+				maxDist = 1
+			}
+			if dist <= maxDist && dist < bestFuzzyDist {
+				bestFuzzyDist = dist
+				bestFuzzyDept = dept
+			}
+		}
+	}
+
+	if bestFuzzyDept != "" {
+		return bestFuzzyDept
+	}
+
+	return "Others"
 }

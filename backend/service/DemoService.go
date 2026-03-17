@@ -268,6 +268,16 @@ func (s *DemoService) CreatePublicBooking(ctx context.Context, req models.Public
 	return booking, nil
 }
 
+// AutoCompletePassedDemos marks confirmed demos whose scheduled_at has passed as completed.
+func (s *DemoService) AutoCompletePassedDemos(ctx context.Context) (int64, error) {
+	return s.repo.CompletePassedDemos(ctx)
+}
+
+// ListPastForReview returns completed demos that have no trial yet (for admin review).
+func (s *DemoService) ListPastForReview(ctx context.Context, page, limit int) (*models.DemoListResponse, error) {
+	return s.repo.ListPastForReview(ctx, page, limit)
+}
+
 // generateDemoMeetLink is kept for reference but is no longer used automatically.
 func generateDemoMeetLink(companyName, date, slot string) string {
 	seed := fmt.Sprintf("%s|%s|%s", strings.ToLower(companyName), date, slot)

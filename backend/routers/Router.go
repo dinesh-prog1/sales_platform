@@ -19,6 +19,7 @@ func Build(
 	tc *controller.TrialController,
 	ic *controller.InterestController,
 	ac *controller.AnalyticsController,
+	sc *controller.SubscriptionController,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -57,6 +58,7 @@ func Build(
 		tc.RegisterRoutes(r)
 		ic.RegisterRoutes(r)
 		ac.RegisterRoutes(r)
+		sc.RegisterRoutes(r)
 	})
 
 	return r

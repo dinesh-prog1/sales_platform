@@ -358,6 +358,26 @@ func (s *EmailService) UpdateTemplate(ctx context.Context, emailType models.Emai
 	return s.repo.UpdateTemplate(ctx, emailType, req)
 }
 
+func (s *EmailService) UpdateTemplateByID(ctx context.Context, id string, req models.UpdateEmailTemplateRequest) error {
+	return s.repo.UpdateTemplateByID(ctx, id, req)
+}
+
+func (s *EmailService) CreateTemplate(ctx context.Context, req models.CreateEmailTemplateRequest) (*models.EmailTemplate, error) {
+	return s.repo.CreateTemplate(ctx, req)
+}
+
+func (s *EmailService) SetActiveTemplate(ctx context.Context, id string) error {
+	return s.repo.SetActiveTemplate(ctx, id)
+}
+
+func (s *EmailService) DeleteTemplate(ctx context.Context, id string) error {
+	return s.repo.DeleteTemplate(ctx, id)
+}
+
+func (s *EmailService) GetTemplateByID(ctx context.Context, id string) (*models.EmailTemplate, error) {
+	return s.repo.GetTemplateByID(ctx, id)
+}
+
 func (s *EmailService) GetConfig(ctx context.Context) (*models.EmailConfig, error) {
 	return s.repo.GetConfig(ctx)
 }
@@ -372,6 +392,14 @@ func (s *EmailService) ClearAllLogs(ctx context.Context) error {
 
 func (s *EmailService) GetDailyTrend(ctx context.Context, days int) ([]map[string]interface{}, error) {
 	return s.repo.GetDailyEmailTrend(ctx, days)
+}
+
+func (s *EmailService) GetInsightStats(ctx context.Context) (*models.EmailInsightStats, error) {
+	return s.repo.GetInsightStats(ctx)
+}
+
+func (s *EmailService) RetryEmail(ctx context.Context, id string) error {
+	return s.repo.RetryEmail(ctx, id)
 }
 
 func (s *EmailService) SendManualOutreach(ctx context.Context, req models.ManualOutreachRequest) error {
@@ -546,6 +574,15 @@ func (s *EmailService) ResetCompanyOutreach(ctx context.Context, companyID strin
 
 func renderEmailTemplate(tmpl string, c models.CompanyInfo, cfg *models.EmailConfig) string {
 	baseURL := strings.TrimRight(cfg.AppBaseURL, "/")
+
+	// Trial-specific links (used in trial_conversion email)
+	trialInterestedLink := ""
+	trialNotInterestedLink := ""
+	if c.TrialID != "" {
+		trialInterestedLink = fmt.Sprintf("%s/trial/respond?trial_id=%s&action=interested", baseURL, c.TrialID)
+		trialNotInterestedLink = fmt.Sprintf("%s/trial/respond?trial_id=%s&action=not_interested", baseURL, c.TrialID)
+	}
+
 	r := strings.NewReplacer(
 		"{{company_name}}", c.Name,
 		"{{contact_person}}", c.ContactPerson,
@@ -555,6 +592,8 @@ func renderEmailTemplate(tmpl string, c models.CompanyInfo, cfg *models.EmailCon
 		"{{product_link}}", "https://employeegalaxy.com/employee/home/",
 		"{{interested_link}}", fmt.Sprintf("%s/interest/respond?company_id=%s&action=interested", baseURL, c.ID),
 		"{{not_interested_link}}", fmt.Sprintf("%s/interest/respond?company_id=%s&action=not_interested", baseURL, c.ID),
+		"{{trial_interested_link}}", trialInterestedLink,
+		"{{trial_not_interested_link}}", trialNotInterestedLink,
 		"{{schedule_form_link}}", fmt.Sprintf("%s/demo/book", baseURL),
 		"{{trial_link}}", "https://app.aisales.io/trial/start",
 		"{{upgrade_link}}", "https://app.aisales.io/pricing",

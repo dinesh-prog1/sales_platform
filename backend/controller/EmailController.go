@@ -24,9 +24,15 @@ func (h *EmailController) RegisterRoutes(r chi.Router) {
 		r.Post("/manual-outreach", h.SendManualOutreach)
 		r.Post("/respond-outreach", h.RespondOutreach)
 		r.Get("/stats", h.GetStats)
+		r.Get("/insights", h.GetInsights)
+		r.Post("/{id}/retry", h.RetryEmail)
 		r.Get("/trend", h.GetTrend)
 		r.Get("/templates", h.GetTemplates)
+		r.Post("/templates", h.CreateTemplate)
 		r.Put("/templates/{type}", h.UpdateTemplate)
+		r.Put("/templates/by-id/{id}", h.UpdateTemplateByID)
+		r.Post("/templates/{id}/activate", h.SetActiveTemplate)
+		r.Delete("/templates/{id}", h.DeleteTemplate)
 		r.Get("/config", h.GetConfig)
 		r.Put("/config", h.UpdateConfig)
 		r.Delete("/logs", h.ClearLogs)
@@ -68,6 +74,7 @@ func (h *EmailController) ListEmails(w http.ResponseWriter, r *http.Request) {
 		CompanyID: r.URL.Query().Get("company_id"),
 		Type:      r.URL.Query().Get("type"),
 		Status:    r.URL.Query().Get("status"),
+		Search:    r.URL.Query().Get("search"),
 		Page:      page,
 		Limit:     limit,
 	})
@@ -123,6 +130,56 @@ func (h *EmailController) UpdateTemplate(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]string{"message": "template updated"})
 }
 
+func (h *EmailController) UpdateTemplateByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var req models.UpdateEmailTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.svc.UpdateTemplateByID(r.Context(), id, req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "template updated"})
+}
+
+func (h *EmailController) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateEmailTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Type == "" || req.Name == "" {
+		writeError(w, http.StatusBadRequest, "type and name are required")
+		return
+	}
+	t, err := h.svc.CreateTemplate(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, t)
+}
+
+func (h *EmailController) SetActiveTemplate(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := h.svc.SetActiveTemplate(r.Context(), id); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "template activated"})
+}
+
+func (h *EmailController) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := h.svc.DeleteTemplate(r.Context(), id); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "template deleted"})
+}
+
 func (h *EmailController) GetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg, err := h.svc.GetConfig(r.Context())
 	if err != nil {
@@ -154,6 +211,24 @@ func (h *EmailController) ResetCompanyOutreach(w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "outreach limit reset — company is eligible for a fresh outreach"})
+}
+
+func (h *EmailController) GetInsights(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.svc.GetInsightStats(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+func (h *EmailController) RetryEmail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := h.svc.RetryEmail(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "email re-queued for retry"})
 }
 
 // ClearLogs deletes all email logs and resets outreach_sent companies back to uploaded.

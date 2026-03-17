@@ -22,10 +22,26 @@ func (h *TrialController) RegisterRoutes(r chi.Router) {
 	r.Route("/trials", func(r chi.Router) {
 		r.Get("/", h.List)
 		r.Post("/", h.Create)
+		r.Post("/respond", h.Respond)
 		r.Get("/stats", h.Stats)
 		r.Get("/{id}", h.Get)
 		r.Put("/{id}", h.Update)
 	})
+}
+
+// Respond handles trial conversion link clicks (interested / not_interested).
+func (h *TrialController) Respond(w http.ResponseWriter, r *http.Request) {
+	var req models.TrialRespondRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	result, err := h.svc.HandleTrialResponse(r.Context(), req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *TrialController) Create(w http.ResponseWriter, r *http.Request) {

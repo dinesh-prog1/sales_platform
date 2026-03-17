@@ -31,6 +31,7 @@ var Departments = []string{
 	"Healthcare & Medical",
 	"Education",
 	"Retail & E-commerce",
+	"Textile & Garments",
 	"Manufacturing & Industrial",
 	"Hospitality & Tourism",
 	"Financial Services",
@@ -39,6 +40,7 @@ var Departments = []string{
 	"Professional Services",
 	"Agriculture & Food",
 	"Wellness & Fitness",
+	"Others",
 }
 
 type Company struct {
@@ -93,9 +95,11 @@ type CompanyStatusStats struct {
 	OutreachSent  int64 `json:"outreach_sent"`
 	Interested    int64 `json:"interested"`
 	NotInterested int64 `json:"not_interested"`
+	DemoInvited   int64 `json:"demo_invited"`
 	DemoScheduled int64 `json:"demo_scheduled"`
 	DemoCompleted int64 `json:"demo_completed"`
 	TrialStarted  int64 `json:"trial_started"`
+	TrialExpired  int64 `json:"trial_expired"`
 	Converted     int64 `json:"converted"`
 	Dropped       int64 `json:"dropped"`
 }

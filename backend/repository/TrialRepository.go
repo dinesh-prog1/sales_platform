@@ -89,10 +89,10 @@ func (r *TrialRepository) Update(ctx context.Context, id string, req models.Tria
 		UPDATE trials
 		SET status = $1,
 		    plan_selected = COALESCE(NULLIF($2, ''), plan_selected),
-		    converted_at = CASE WHEN $1 = 'converted' THEN NOW() ELSE converted_at END,
+		    converted_at = CASE WHEN $3 = 'converted' THEN NOW() ELSE converted_at END,
 		    updated_at = NOW()
-		WHERE id = $3`
-	_, err := r.db.Pool.Exec(ctx, query, req.Status, req.PlanSelected, id)
+		WHERE id = $4`
+	_, err := r.db.Pool.Exec(ctx, query, string(req.Status), req.PlanSelected, string(req.Status), id)
 	return err
 }
 

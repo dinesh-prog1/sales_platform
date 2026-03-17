@@ -221,9 +221,11 @@ func (r *CompanyRepository) GetStatusStats(ctx context.Context) (*models.Company
 			COUNT(*) FILTER (WHERE status = 'outreach_sent') as outreach_sent,
 			COUNT(*) FILTER (WHERE status = 'interested') as interested,
 			COUNT(*) FILTER (WHERE status = 'not_interested') as not_interested,
+			COUNT(*) FILTER (WHERE status = 'demo_invited') as demo_invited,
 			COUNT(*) FILTER (WHERE status = 'demo_scheduled') as demo_scheduled,
 			COUNT(*) FILTER (WHERE status = 'demo_completed') as demo_completed,
 			COUNT(*) FILTER (WHERE status = 'trial_started') as trial_started,
+			COUNT(*) FILTER (WHERE status = 'trial_expired') as trial_expired,
 			COUNT(*) FILTER (WHERE status = 'converted') as converted,
 			COUNT(*) FILTER (WHERE status = 'dropped') as dropped
 		FROM companies`
@@ -231,7 +233,8 @@ func (r *CompanyRepository) GetStatusStats(ctx context.Context) (*models.Company
 	s := &models.CompanyStatusStats{}
 	err := r.db.Pool.QueryRow(ctx, query).Scan(
 		&s.Uploaded, &s.OutreachSent, &s.Interested, &s.NotInterested,
-		&s.DemoScheduled, &s.DemoCompleted, &s.TrialStarted, &s.Converted, &s.Dropped,
+		&s.DemoInvited, &s.DemoScheduled, &s.DemoCompleted,
+		&s.TrialStarted, &s.TrialExpired, &s.Converted, &s.Dropped,
 	)
 	return s, err
 }

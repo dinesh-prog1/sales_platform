@@ -56,11 +56,21 @@ export const emailsApi = {
     api.post('/emails/respond-outreach', data).then(r => r.data),
 
   stats: () => api.get('/emails/stats').then(r => r.data),
+  insights: () => api.get('/emails/insights').then(r => r.data),
+  retryEmail: (id: string) => api.post(`/emails/${id}/retry`).then(r => r.data),
   trend: (days = 30) => api.get('/emails/trend', { params: { days } }).then(r => r.data),
 
   templates: () => api.get('/emails/templates').then(r => r.data),
   updateTemplate: (type: string, data: object) =>
     api.put(`/emails/templates/${type}`, data).then(r => r.data),
+  updateTemplateByID: (id: string, data: object) =>
+    api.put(`/emails/templates/by-id/${id}`, data).then(r => r.data),
+  createTemplate: (data: { type: string; name: string; subject: string; body: string }) =>
+    api.post('/emails/templates', data).then(r => r.data),
+  activateTemplate: (id: string) =>
+    api.post(`/emails/templates/${id}/activate`).then(r => r.data),
+  deleteTemplate: (id: string) =>
+    api.delete(`/emails/templates/${id}`).then(r => r.data),
 
   config: () => api.get('/emails/config').then(r => r.data),
   updateConfig: (data: object) => api.put('/emails/config', data).then(r => r.data),
@@ -84,6 +94,8 @@ export const demosApi = {
   pending: (params?: Record<string, string | number>) => api.get('/demos', { params: { ...params, status: 'pending' } }).then(r => r.data),
   confirm: (id: string, meetingLink: string) => api.post(`/demos/${id}/confirm`, { meeting_link: meetingLink }).then(r => r.data),
   delete: (id: string) => api.delete(`/demos/${id}`).then(r => r.data),
+  pastReview: (params?: Record<string, string | number>) =>
+    api.get('/demos/past-review', { params }).then(r => r.data),
 }
 
 // Trials
@@ -95,6 +107,7 @@ export const trialsApi = {
   get: (id: string) => api.get(`/trials/${id}`).then(r => r.data),
   update: (id: string, data: object) => api.put(`/trials/${id}`, data).then(r => r.data),
   stats: () => api.get('/trials/stats').then(r => r.data),
+  respond: (data: object) => api.post('/trials/respond', data).then(r => r.data),
 }
 
 // Interest
@@ -104,6 +117,16 @@ export const interestApi = {
     api.post('/interest/detect', { email_body: emailBody }).then(r => r.data),
   mark: (companyId: string, interested: boolean, notes?: string) =>
     api.post('/interest/mark', { company_id: companyId, interested, notes }).then(r => r.data),
+}
+
+// Subscriptions
+export const subscriptionsApi = {
+  create: (data: object) => api.post('/subscriptions', data).then(r => r.data),
+  list: (params?: Record<string, string | number>) =>
+    api.get('/subscriptions', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/subscriptions/${id}`).then(r => r.data),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/subscriptions/${id}/status`, { status }).then(r => r.data),
 }
 
 // Analytics

@@ -91,13 +91,15 @@ func main() {
 	trialSvc := service.NewTrialService(trialRepo)
 	interestSvc := service.NewInterestService(db, companyRepo)
 	analyticsSvc := service.NewAnalyticsService(db)
+	subscriptionRepo := repository.NewSubscriptionRepository(db)
+	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, trialRepo, companyRepo)
 
 	// Email worker (background)
 	worker := scheduler.NewEmailWorker(emailRepo, companyRepo, q, m)
 	go worker.Start(ctx)
 
 	// Pipeline scheduler
-	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc)
+	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)
 	go sched.Start(ctx)
 
 	// Controllers
@@ -107,9 +109,10 @@ func main() {
 	trialCtrl := controller.NewTrialController(trialSvc)
 	interestCtrl := controller.NewInterestController(interestSvc)
 	analyticsCtrl := controller.NewAnalyticsController(analyticsSvc)
+	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	handler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl)
+	handler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

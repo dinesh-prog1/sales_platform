@@ -41,6 +41,7 @@ func (w *EmailWorker) Start(ctx context.Context) {
 		models.QueueEmailDemoConfirm,
 		models.QueueEmailPostDemo,
 		models.QueueEmailTrialRemind,
+		models.QueueEmailTrialConversion,
 		models.QueueEmailFeedback,
 	}
 

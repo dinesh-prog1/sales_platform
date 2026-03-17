@@ -77,6 +77,8 @@ func main() {
 	trialSvc := service.NewTrialService(trialRepo)
 	interestSvc := service.NewInterestService(db, companyRepo)
 	analyticsSvc := service.NewAnalyticsService(db)
+	subscriptionRepo := repository.NewSubscriptionRepository(db)
+	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, trialRepo, companyRepo)
 
 	// Controllers
 	companyCtrl := controller.NewCompanyController(companySvc)
@@ -85,12 +87,13 @@ func main() {
 	trialCtrl := controller.NewTrialController(trialSvc)
 	interestCtrl := controller.NewInterestController(interestSvc)
 	analyticsCtrl := controller.NewAnalyticsController(analyticsSvc)
+	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	httpHandler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl)
+	httpHandler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl)
 
 	// Scheduler
-	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc)
+	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)
 	go sched.Start(ctx)
 
 	// Email worker (in same process for simplicity; production uses cmd/worker)

@@ -10,8 +10,9 @@ const (
 	EmailTypeDemoInvite  EmailType = "demo_invite"
 	EmailTypeDemoConfirm EmailType = "demo_confirm"
 	EmailTypePostDemo    EmailType = "post_demo"
-	EmailTypeTrialRemind EmailType = "trial_reminder"
-	EmailTypeFeedback    EmailType = "feedback"
+	EmailTypeTrialRemind     EmailType = "trial_reminder"
+	EmailTypeTrialConversion EmailType = "trial_conversion"
+	EmailTypeFeedback        EmailType = "feedback"
 )
 
 const (
@@ -29,9 +30,10 @@ const (
 	QueueEmailDemoInvite  = "email:demo_invite"
 	QueueEmailDemoConfirm = "email:demo_confirm"
 	QueueEmailPostDemo    = "email:post_demo"
-	QueueEmailTrialRemind = "email:trial_reminder"
-	QueueEmailFeedback    = "email:feedback"
-	QueueEmailDLQ         = "email:dlq"
+	QueueEmailTrialRemind     = "email:trial_reminder"
+	QueueEmailTrialConversion = "email:trial_conversion"
+	QueueEmailFeedback        = "email:feedback"
+	QueueEmailDLQ             = "email:dlq"
 )
 
 // TypeToQueue maps an email type to its queue name.
@@ -47,6 +49,8 @@ func TypeToQueue(t EmailType) string {
 		return QueueEmailPostDemo
 	case EmailTypeTrialRemind:
 		return QueueEmailTrialRemind
+	case EmailTypeTrialConversion:
+		return QueueEmailTrialConversion
 	case EmailTypeFeedback:
 		return QueueEmailFeedback
 	default:
@@ -74,13 +78,14 @@ type EmailLog struct {
 }
 
 type EmailTemplate struct {
-	ID        string     `json:"id"`
-	Type      EmailType  `json:"type"`
-	Subject   string     `json:"subject"`
-	Body      string     `json:"body"`
-	IsActive  bool       `json:"is_active"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID        string    `json:"id"`
+	Type      EmailType `json:"type"`
+	Name      string    `json:"name"`
+	Subject   string    `json:"subject"`
+	Body      string    `json:"body"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type EmailConfig struct {
@@ -113,8 +118,36 @@ type EmailListFilter struct {
 	CompanyID string
 	Type      string
 	Status    string
+	Search    string
 	Page      int
 	Limit     int
+}
+
+// EmailCampaignStats holds per-campaign-type status breakdown.
+type EmailCampaignStats struct {
+	Type    EmailType `json:"type"`
+	Total   int64     `json:"total"`
+	Sent    int64     `json:"sent"`
+	Pending int64     `json:"pending"`
+	Queued  int64     `json:"queued"`
+	Failed  int64     `json:"failed"`
+	Opened  int64     `json:"opened"`
+	Replied int64     `json:"replied"`
+}
+
+// EmailInsightStats holds aggregate campaign insights with computed rates.
+type EmailInsightStats struct {
+	TotalEmails       int64                `json:"total_emails"`
+	TotalSent         int64                `json:"total_sent"`
+	SentToday         int64                `json:"sent_today"`
+	TotalFailed       int64                `json:"total_failed"`
+	TotalPending      int64                `json:"total_pending"`
+	TotalOpened       int64                `json:"total_opened"`
+	TotalReplied      int64                `json:"total_replied"`
+	DeliveryRate      float64              `json:"delivery_rate"`
+	OpenRate          float64              `json:"open_rate"`
+	ReplyRate         float64              `json:"reply_rate"`
+	CampaignBreakdown []EmailCampaignStats `json:"campaign_breakdown"`
 }
 
 type EmailListResponse struct {
@@ -126,9 +159,23 @@ type EmailListResponse struct {
 }
 
 type UpdateEmailTemplateRequest struct {
+	Name     string `json:"name"`
 	Subject  string `json:"subject"`
 	Body     string `json:"body"`
 	IsActive bool   `json:"is_active"`
+}
+
+// CreateEmailTemplateRequest is the body for POST /emails/templates.
+type CreateEmailTemplateRequest struct {
+	Type    EmailType `json:"type"`
+	Name    string    `json:"name"`
+	Subject string    `json:"subject"`
+	Body    string    `json:"body"`
+}
+
+// SetActiveTemplateRequest is the body for POST /emails/templates/{id}/activate.
+type SetActiveTemplateRequest struct {
+	// intentionally empty — the id comes from the URL
 }
 
 type UpdateEmailConfigRequest struct {
@@ -164,6 +211,13 @@ type CompanyInfo struct {
 	ContactPerson string
 	Industry      string
 	Size          string
+	TrialID       string // set for trial-conversion emails
+}
+
+// TrialRespondRequest is the body for POST /trials/respond.
+type TrialRespondRequest struct {
+	TrialID string `json:"trial_id"`
+	Action  string `json:"action"`
 }
 
 // EmailJob is the job payload stored in the queue.

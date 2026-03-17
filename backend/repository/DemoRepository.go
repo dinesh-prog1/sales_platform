@@ -123,10 +123,10 @@ func (r *DemoRepository) Update(ctx context.Context, id string, req models.DemoU
 		    status = $2,
 		    meeting_link = COALESCE(NULLIF($3, ''), meeting_link),
 		    notes = COALESCE(NULLIF($4, ''), notes),
-		    completed_at = CASE WHEN $2 = 'completed' THEN NOW() ELSE completed_at END,
+		    completed_at = CASE WHEN $5 = 'completed' THEN NOW() ELSE completed_at END,
 		    updated_at = NOW()
-		WHERE id = $5`
-	_, err := r.db.Pool.Exec(ctx, query, req.ScheduledAt, req.Status, req.MeetingLink, req.Notes, id)
+		WHERE id = $6`
+	_, err := r.db.Pool.Exec(ctx, query, req.ScheduledAt, string(req.Status), req.MeetingLink, req.Notes, string(req.Status), id)
 	return err
 }
 
@@ -256,6 +256,86 @@ func (r *DemoRepository) Delete(ctx context.Context, id string) (string, error) 
 		return "", fmt.Errorf("booking not found")
 	}
 	return companyID, err
+}
+
+// CompletePassedDemos bulk-updates confirmed demos whose scheduled_at has passed
+// to 'completed'. Returns the number of rows updated.
+func (r *DemoRepository) CompletePassedDemos(ctx context.Context) (int64, error) {
+	tag, err := r.db.Pool.Exec(ctx, `
+		UPDATE demo_bookings
+		SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+		WHERE status = 'confirmed' AND scheduled_at < NOW()`)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
+// ListPastForReview returns completed demos that do NOT yet have a trial created.
+func (r *DemoRepository) ListPastForReview(ctx context.Context, page, limit int) (*models.DemoListResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	where := `WHERE db.status = 'completed' AND t.id IS NULL`
+	join := `LEFT JOIN companies c ON c.id = db.company_id
+		LEFT JOIN trials t ON t.demo_id = db.id`
+
+	var total int64
+	if err := r.db.Pool.QueryRow(ctx,
+		fmt.Sprintf("SELECT COUNT(*) FROM demo_bookings db %s %s", join, where),
+	).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	query := fmt.Sprintf(`
+		SELECT db.id,
+		       COALESCE(db.company_id::text, ''),
+		       COALESCE(c.name, db.booker_company, ''),
+		       COALESCE(c.email, db.booker_email, ''),
+		       COALESCE(db.booker_name, ''),
+		       COALESCE(db.booker_email, ''),
+		       COALESCE(db.booker_company, ''),
+		       db.scheduled_at, COALESCE(db.time_slot,''), db.status,
+		       COALESCE(db.meeting_link, ''), COALESCE(db.calendar_event_id, ''),
+		       COALESCE(db.notes, ''), db.completed_at,
+		       db.created_at, db.updated_at
+		FROM demo_bookings db
+		%s %s
+		ORDER BY db.completed_at DESC
+		LIMIT $1 OFFSET $2`, join, where)
+
+	rows, err := r.db.Pool.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bookings []*models.DemoBooking
+	for rows.Next() {
+		b := &models.DemoBooking{}
+		if err := rows.Scan(
+			&b.ID, &b.CompanyID, &b.CompanyName, &b.CompanyEmail,
+			&b.BookerName, &b.BookerEmail, &b.BookerCompany,
+			&b.ScheduledAt, &b.TimeSlot, &b.Status, &b.MeetingLink, &b.CalendarEventID,
+			&b.Notes, &b.CompletedAt, &b.CreatedAt, &b.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		bookings = append(bookings, b)
+	}
+
+	return &models.DemoListResponse{
+		Bookings:   bookings,
+		Total:      total,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: int(math.Ceil(float64(total) / float64(limit))),
+	}, nil
 }
 
 // ConfirmBooking sets status="confirmed" and meeting_link on a pending booking.

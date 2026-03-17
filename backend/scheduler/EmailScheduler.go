@@ -9,22 +9,25 @@ import (
 	"github.com/aisales/backend/service"
 )
 
-// EmailScheduler runs periodic outreach batches and trial reminder jobs.
+// EmailScheduler runs periodic outreach batches, trial reminders, and demo auto-completion.
 type EmailScheduler struct {
 	companySvc *service.CompanyService
 	emailSvc   *service.EmailService
 	trialSvc   *service.TrialService
+	demoSvc    *service.DemoService
 }
 
 func NewEmailScheduler(
 	companySvc *service.CompanyService,
 	emailSvc *service.EmailService,
 	trialSvc *service.TrialService,
+	demoSvc *service.DemoService,
 ) *EmailScheduler {
 	return &EmailScheduler{
 		companySvc: companySvc,
 		emailSvc:   emailSvc,
 		trialSvc:   trialSvc,
+		demoSvc:    demoSvc,
 	}
 }
 
@@ -33,6 +36,7 @@ func (s *EmailScheduler) Start(ctx context.Context) {
 	go s.runOutreachBatchLoop(ctx)
 	go s.runTrialReminderLoop(ctx)
 	go s.runTrialExpiryLoop(ctx)
+	go s.runDemoCompletionLoop(ctx)
 
 	log.Println("[EmailScheduler] Started")
 	<-ctx.Done()
@@ -151,7 +155,16 @@ func toCompanyInfos(companies []*models.Company) []models.CompanyInfo {
 }
 
 // runTrialReminderLoop checks for expiring trials every 6 hours.
+// Runs once at startup (after 60s delay) so newly-expiring trials are caught immediately.
 func (s *EmailScheduler) runTrialReminderLoop(ctx context.Context) {
+	// Run once at startup after brief delay
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(60 * time.Second):
+	}
+	s.sendTrialReminders(ctx)
+
 	ticker := time.NewTicker(6 * time.Hour)
 	defer ticker.Stop()
 
@@ -176,25 +189,37 @@ func (s *EmailScheduler) sendTrialReminders(ctx context.Context) {
 		if t.CompanyEmail == "" {
 			continue
 		}
+		// Send trial_conversion email (with plan selection / interested link)
 		err := s.emailSvc.QueueEmailForCompany(ctx, models.CompanyInfo{
-			ID:    t.CompanyID,
-			Name:  t.CompanyName,
-			Email: t.CompanyEmail,
-		}, models.EmailTypeTrialRemind)
+			ID:            t.CompanyID,
+			Name:          t.CompanyName,
+			Email:         t.CompanyEmail,
+			ContactPerson: t.BookerName,
+			TrialID:       t.ID,
+		}, models.EmailTypeTrialConversion)
 		if err != nil {
-			log.Printf("[EmailScheduler] Failed to queue trial reminder for %s: %v", t.ID, err)
+			log.Printf("[EmailScheduler] Failed to send trial conversion email for %s: %v", t.ID, err)
 			continue
 		}
 		_ = s.trialSvc.MarkReminderSent(ctx, t.ID)
 	}
 
 	if len(trials) > 0 {
-		log.Printf("[EmailScheduler] Sent trial reminders for %d trials", len(trials))
+		log.Printf("[EmailScheduler] Sent trial conversion emails for %d trials", len(trials))
 	}
 }
 
 // runTrialExpiryLoop marks expired trials every hour.
+// Runs once at startup (after 90s delay) so overdue trials are caught immediately.
 func (s *EmailScheduler) runTrialExpiryLoop(ctx context.Context) {
+	// Run once at startup after brief delay
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(90 * time.Second):
+	}
+	s.expireTrials(ctx)
+
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 
@@ -225,5 +250,42 @@ func (s *EmailScheduler) expireTrials(ctx context.Context) {
 
 	if len(trials) > 0 {
 		log.Printf("[EmailScheduler] Expired %d trials", len(trials))
+	}
+}
+
+// runDemoCompletionLoop auto-marks confirmed demos as completed once their
+// scheduled_at time has passed. Runs every 30 minutes.
+func (s *EmailScheduler) runDemoCompletionLoop(ctx context.Context) {
+	// Run once at startup after a brief delay
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(30 * time.Second):
+	}
+	s.completePastDemos(ctx)
+
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.completePastDemos(ctx)
+		}
+	}
+}
+
+func (s *EmailScheduler) completePastDemos(ctx context.Context) {
+	if s.demoSvc == nil {
+		return
+	}
+	count, err := s.demoSvc.AutoCompletePassedDemos(ctx)
+	if err != nil {
+		log.Printf("[EmailScheduler] Auto-complete past demos error: %v", err)
+		return
+	}
+	if count > 0 {
+		log.Printf("[EmailScheduler] Auto-completed %d past demos", count)
 	}
 }

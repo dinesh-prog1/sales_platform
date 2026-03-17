@@ -9,29 +9,29 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+        navy: {
+          DEFAULT: '#00002d',
+          light: '#0a0a3a',
+          lighter: '#161650',
         },
-        brand: {
-          light: '#e8f0fe',
-          DEFAULT: '#1a73e8',
-          dark: '#1557b0',
+        cyan: {
+          DEFAULT: '#00d4ff',
+          dim: '#00b4d8',
         },
-        sidebar: '#1a237e',
-        'sidebar-hover': '#283593',
+        surface: '#f8f9fc',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      borderRadius: {
+        'xl': '12px',
+        '2xl': '16px',
+        '3xl': '20px',
+      },
+      boxShadow: {
+        'card': '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)',
+        'card-hover': '0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+        'elevated': '0 8px 32px rgba(0,0,0,0.08)',
       },
     },
   },

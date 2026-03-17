@@ -1,20 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Header from '@/components/layout/Header'
 import MetricCard from '@/components/ui/MetricCard'
-import PipelineChart from '@/components/charts/PipelineChart'
-import EmailTrendChart from '@/components/charts/EmailTrendChart'
-import SizeDonutChart from '@/components/charts/SizeDonutChart'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { analyticsApi } from '@/lib/api'
 import { DashboardData } from '@/types'
 import {
   Building2, Mail, Handshake, CalendarCheck,
   FlaskConical, TrendingUp, UserX, MessageSquare,
-  Upload, CalendarDays, Clock, ArrowRight, ChevronRight
+  Upload, CalendarDays, Clock, ArrowRight
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
+
+function spark(base: number, count = 7): number[] {
+  return Array.from({ length: count }, (_, i) =>
+    Math.max(0, base + Math.round((Math.random() - 0.4) * base * 0.6 * (i / count)))
+  )
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -31,50 +34,51 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
 
   if (loading) return (
-    <div className="p-6">
-      <div className="welcome-banner mb-6 h-24 animate-pulse" />
+    <div className="p-7">
+      <div className="h-28 bg-[#00002d] rounded-2xl mb-6 animate-pulse" />
       <LoadingSpinner size="lg" />
     </div>
   )
 
   const d = data
 
-  // Funnel stages
-  const funnelStages = [
-    { label: 'Companies Uploaded', value: d?.pipeline.total_companies ?? 0, color: '#3b82f6', icon: '🏢' },
-    { label: 'Outreach Sent', value: d?.pipeline.outreach_sent ?? 0, color: '#6366f1', icon: '📧' },
-    { label: 'Interested', value: d?.pipeline.interested ?? 0, color: '#8b5cf6', icon: '🤝' },
-    { label: 'Demo Scheduled', value: d?.pipeline.demo_scheduled ?? 0, color: '#06b6d4', icon: '📅' },
-    { label: 'Demo Completed', value: d?.pipeline.demo_completed ?? 0, color: '#10b981', icon: '✅' },
-    { label: 'Trial Started', value: d?.pipeline.trial_started ?? 0, color: '#f59e0b', icon: '🧪' },
-    { label: 'Converted', value: d?.pipeline.converted ?? 0, color: '#059669', icon: '💰' },
-  ]
-  const maxFunnel = funnelStages[0].value || 1
-
   return (
-    <div className="p-6 fade-in">
-      {/* Welcome Banner */}
-      <div className="welcome-banner mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-white/70 rounded-full flex items-center justify-center text-2xl font-bold text-blue-700 shadow-sm">
-            AS
+    <div className="p-7 fade-in">
+      {/* ── Welcome Banner ── */}
+      <div className="welcome-banner mb-7">
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/[0.06] border border-white/[0.06] rounded-2xl flex items-center justify-center">
+              <Image
+                src="/icon-exhibix-white.png"
+                alt="Exhibix"
+                width={32}
+                height={32}
+                className="w-8 h-8 object-contain"
+              />
+            </div>
+            <div>
+              <div className="text-white/40 text-xs font-medium tracking-wide uppercase">{greeting}</div>
+              <div className="text-white text-xl font-bold tracking-[0.08em] mt-1">
+                Welcome back
+              </div>
+              <div className="text-white/30 text-xs mt-1 font-normal">
+                {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
           </div>
-          <div>
-            <div className="text-gray-600 text-sm font-medium">{greeting} 👋</div>
-            <div className="text-gray-800 text-2xl font-bold">AI Sales Platform</div>
-            <div className="text-gray-500 text-sm mt-0.5">
-              {now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-2">
+              <div className="status-dot active" />
+              <span className="text-white/50 text-xs font-medium">Automation Active</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Access */}
-      <div className="mb-6">
-        <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
-          <span className="w-1 h-4 bg-blue-600 rounded-full" />
-          Quick Access
-        </h2>
+      {/* ── Quick Access ── */}
+      <div className="mb-7">
+        <h2 className="section-title mb-4">Quick Access</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Upload Companies', icon: Upload, href: '/companies', desc: 'Import from Excel' },
@@ -84,148 +88,124 @@ export default function DashboardPage() {
           ].map(({ label, icon: Icon, href, desc }) => (
             <Link key={href} href={href}>
               <div className="quick-access-card group">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Icon className="w-6 h-6" />
+                <div className="icon-wrap">
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
                 </div>
                 <div className="text-center">
-                  <div className="font-semibold text-sm">{label}</div>
-                  <div className="text-white/70 text-xs">{desc}</div>
+                  <div className="font-semibold text-[13px] text-[#0f172a]">{label}</div>
+                  <div className="text-[#94a3b8] text-[11px] mt-0.5">{desc}</div>
                 </div>
+                <ArrowRight className="w-3.5 h-3.5 text-[#cbd5e1] group-hover:text-[#00d4ff] group-hover:translate-x-1 transition-all" />
               </div>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Main Metrics */}
-      <div className="mb-3">
-        <h2 className="text-gray-700 font-semibold text-sm flex items-center gap-2">
-          <span className="w-1 h-4 bg-blue-600 rounded-full" />
-          Pipeline Overview
-        </h2>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* ── Pipeline Overview ── */}
+      <h2 className="section-title mb-4">Pipeline Overview</h2>
+
+      {/* Row 1 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <MetricCard
           title="Total Companies"
           value={d?.pipeline.total_companies ?? 0}
           subtitle="Uploaded in system"
           icon={Building2}
-          gradient="metric-card-blue"
+          gradient="metric-card-navy"
+          variant="outline"
           trend={{ value: 12, label: 'vs last month' }}
+          sparkData={spark(d?.pipeline.total_companies ?? 3)}
+          sparkType="bar"
+          sparkColor="#00d4ff"
         />
         <MetricCard
           title="Emails Sent"
           value={d?.email.total_sent ?? 0}
           subtitle={`${d?.email.sent_today ?? 0} sent today`}
           icon={Mail}
-          gradient="metric-card-indigo"
+          gradient="metric-card-navy"
+          variant="outline"
           trend={{ value: 8, label: 'vs last week' }}
+          sparkData={spark(d?.email.total_sent ?? 5)}
+          sparkType="area"
+          sparkColor="#00d4ff"
         />
         <MetricCard
           title="Interested"
           value={d?.pipeline.interested ?? 0}
           subtitle="Replied with interest"
           icon={Handshake}
-          gradient="metric-card-purple"
+          gradient="metric-card-navy"
+          variant="outline"
+          trend={{ value: -10, label: 'need improvement' }}
+          sparkData={spark(d?.pipeline.interested ?? 2)}
+          sparkType="area"
+          sparkColor="#00d4ff"
         />
         <MetricCard
           title="Demo Scheduled"
           value={d?.pipeline.demo_scheduled ?? 0}
           subtitle={`${d?.pipeline.demo_completed ?? 0} completed`}
           icon={CalendarCheck}
-          gradient="metric-card-cyan"
+          gradient="metric-card-navy"
+          variant="outline"
+          trend={{ value: 5, label: 'vs last month' }}
+          sparkData={spark(d?.pipeline.demo_scheduled ?? 1)}
+          sparkType="area"
+          sparkColor="#00d4ff"
         />
       </div>
 
+      {/* Row 2 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard
           title="Free Trials"
           value={d?.trials.active ?? 0}
           subtitle="Currently active"
           icon={FlaskConical}
-          gradient="metric-card-teal"
+          gradient="metric-card-navy"
+          variant="outline"
+          trend={{ value: 5, label: 'vs last month' }}
+          sparkData={spark(d?.trials.active ?? 1)}
+          sparkType="area"
+          sparkColor="#00d4ff"
         />
         <MetricCard
           title="Paid Conversions"
           value={d?.trials.converted ?? 0}
           subtitle={`${d?.pipeline.conversion_rate?.toFixed(1) ?? 0}% conversion rate`}
           icon={TrendingUp}
-          gradient="metric-card-green"
+          gradient="metric-card-navy"
+          variant="outline"
           trend={{ value: 5, label: 'vs last month' }}
+          sparkData={spark(d?.trials.converted ?? 1)}
+          sparkType="area"
+          sparkColor="#10b981"
         />
         <MetricCard
           title="Trial Drop-offs"
           value={d?.trials.dropped ?? 0}
           subtitle={`${d?.trials.expiring_in_3_days ?? 0} expiring soon`}
           icon={UserX}
-          gradient="metric-card-orange"
+          gradient="metric-card-navy"
+          variant="outline"
+          trend={{ value: -22, label: 'last month' }}
+          sparkData={spark(d?.trials.dropped ?? 2)}
+          sparkType="area"
+          sparkColor="#f43f5e"
         />
         <MetricCard
           title="Feedback Sent"
           value={d?.trials.feedback_sent ?? 0}
           subtitle="Feedback requests"
           icon={MessageSquare}
-          gradient="metric-card-red"
+          gradient="metric-card-navy"
+          variant="outline"
+          sparkData={spark(d?.trials.feedback_sent ?? 1)}
+          sparkType="area"
+          sparkColor="#00d4ff"
         />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {d?.daily_trend && <EmailTrendChart data={d.daily_trend} />}
-        {d?.pipeline_chart && <PipelineChart data={d.pipeline_chart} />}
-      </div>
-
-      {/* Funnel + Size Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pipeline Funnel */}
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-gray-800 text-base">Pipeline Funnel</h3>
-            <Link href="/analytics" className="flex items-center gap-1 text-blue-600 text-xs font-medium hover:underline">
-              Full Analytics <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {funnelStages.map((stage, i) => {
-              const pct = Math.round((stage.value / maxFunnel) * 100)
-              const convPct = i > 0 && funnelStages[i - 1].value > 0
-                ? Math.round((stage.value / funnelStages[i - 1].value) * 100)
-                : null
-              return (
-                <div key={stage.label}>
-                  <div className="flex items-center justify-between text-sm mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{stage.icon}</span>
-                      <span className="text-gray-700 font-medium">{stage.label}</span>
-                      {convPct !== null && (
-                        <span className="flex items-center gap-0.5 text-gray-400 text-xs">
-                          <ChevronRight className="w-3 h-3" />
-                          {convPct}% conv.
-                        </span>
-                      )}
-                    </div>
-                    <span className="font-bold text-gray-800">{stage.value.toLocaleString()}</span>
-                  </div>
-                  <div className="h-7 bg-gray-100 rounded-lg overflow-hidden">
-                    <div
-                      className="h-full rounded-lg flex items-center justify-end pr-3 transition-all duration-700"
-                      style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: stage.color }}
-                    >
-                      {pct > 8 && (
-                        <span className="text-white text-xs font-semibold">{pct}%</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Size Donut */}
-        {d?.size_breakdown && (
-          <SizeDonutChart data={d.size_breakdown} />
-        )}
       </div>
     </div>
   )

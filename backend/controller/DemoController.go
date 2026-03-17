@@ -25,6 +25,7 @@ func (h *DemoController) RegisterRoutes(r chi.Router) {
 		r.Post("/book", h.PublicBook)
 		r.Post("/public-schedule", h.PublicSchedule)
 		r.Get("/slots", h.GetSlots)
+		r.Get("/past-review", h.PastReview)
 		r.Get("/upcoming", h.Upcoming)
 		r.Get("/stats", h.Stats)
 		r.Get("/{id}", h.Get)
@@ -176,4 +177,16 @@ func (h *DemoController) ConfirmDemo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, booking)
+}
+
+// PastReview returns completed demos that have no trial yet.
+func (h *DemoController) PastReview(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	resp, err := h.svc.ListPastForReview(r.Context(), page, limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
 }

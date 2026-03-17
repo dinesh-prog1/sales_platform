@@ -23,7 +23,7 @@ export interface Company {
 export interface EmailLog {
   id: string
   company_id: string
-  type: 'outreach' | 'demo_invite' | 'demo_confirm' | 'post_demo' | 'trial_reminder' | 'feedback'
+  type: 'outreach' | 'demo_invite' | 'demo_confirm' | 'post_demo' | 'trial_reminder' | 'trial_conversion' | 'feedback'
   status: 'pending' | 'queued' | 'sent' | 'failed' | 'opened' | 'replied'
   subject: string
   body: string
@@ -140,8 +140,67 @@ export interface EmailSuggestion {
   size: CompanySize
 }
 
+export type EmailType = 'outreach' | 'demo_invite' | 'demo_confirm' | 'post_demo' | 'trial_reminder' | 'trial_conversion' | 'feedback'
+export type EmailStatus = 'pending' | 'queued' | 'sent' | 'failed' | 'opened' | 'replied'
+
+export interface EmailCampaignStats {
+  type: EmailType
+  total: number
+  sent: number
+  pending: number
+  queued: number
+  failed: number
+  opened: number
+  replied: number
+}
+
+export interface EmailInsightStats {
+  total_emails: number
+  total_sent: number
+  sent_today: number
+  total_failed: number
+  total_pending: number
+  total_opened: number
+  total_replied: number
+  delivery_rate: number
+  open_rate: number
+  reply_rate: number
+  campaign_breakdown: EmailCampaignStats[]
+}
+
+export interface CompanyStatusStats {
+  uploaded: number
+  outreach_sent: number
+  interested: number
+  not_interested: number
+  demo_invited: number
+  demo_scheduled: number
+  demo_completed: number
+  trial_started: number
+  trial_expired: number
+  converted: number
+  dropped: number
+}
+
 export interface SlotAvailability {
   date: string
   taken_slots: string[]
   available_slots: string[]
+}
+
+export interface Subscription {
+  id: string
+  company_id?: string
+  trial_id?: string
+  company_name: string
+  contact_person: string
+  email: string
+  phone: string
+  plan: 'free' | 'premium'
+  num_users: number
+  price_per_user: number
+  total_amount: number
+  status: 'pending' | 'active' | 'cancelled'
+  created_at: string
+  updated_at: string
 }

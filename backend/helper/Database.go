@@ -52,6 +52,8 @@ func ApplyMigrations(ctx context.Context, db *DB) error {
 		"migrations/004_email_logs_nullable_company.sql",
 		"migrations/005_email_config_quotas.sql",
 		"migrations/006_professional_email_templates.sql",
+		"migrations/007_subscriptions.sql",
+		"migrations/008_multi_templates.sql",
 	}
 
 	for _, path := range migrations {
