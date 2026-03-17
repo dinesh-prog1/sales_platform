@@ -85,6 +85,20 @@ func (w *EmailWorker) processQueue(ctx context.Context, queueName string) {
 func (w *EmailWorker) processJob(ctx context.Context, job models.EmailJob) {
 	log.Printf("[EmailWorker] Processing job %s type=%s to=%s", job.EmailLogID, job.Type, job.ToEmail)
 
+	// Guard: skip if this log entry was already sent (e.g. direct-send path ran first,
+	// or a stale queue job from a previous run is being replayed).
+	// On a transient DB error we proceed with the send — dropping the job silently is
+	// worse than an occasional duplicate delivery.
+	if job.EmailLogID != "" {
+		status, err := w.emailRepo.GetLogStatus(ctx, job.EmailLogID)
+		if err != nil {
+			log.Printf("[EmailWorker] Could not check log status for %s: %v — proceeding with send", job.EmailLogID, err)
+		} else if status == models.EmailStatusSent {
+			log.Printf("[EmailWorker] Job %s already sent — skipping duplicate", job.EmailLogID)
+			return
+		}
+	}
+
 	err := w.mailer.Send(utils.EmailMessage{
 		To:      job.ToEmail,
 		Subject: job.Subject,

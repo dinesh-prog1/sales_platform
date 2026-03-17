@@ -53,6 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_email_logs_company_id ON email_logs(company_id);
 CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status);
 CREATE INDEX IF NOT EXISTS idx_email_logs_type ON email_logs(type);
 CREATE INDEX IF NOT EXISTS idx_email_logs_scheduled_at ON email_logs(scheduled_at);
+-- Composite index for rescueStuckEmails scan: WHERE status='queued' AND created_at < $1 AND sent_at IS NULL AND scheduled_at <= NOW()
+CREATE INDEX IF NOT EXISTS idx_email_logs_rescue ON email_logs(status, created_at, scheduled_at) WHERE status = 'queued' AND sent_at IS NULL;
 
 -- Demo bookings table
 CREATE TABLE IF NOT EXISTS demo_bookings (

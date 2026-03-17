@@ -1,16 +1,22 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { emailsApi } from '@/lib/api'
 
 function InterestRespondContent() {
   const params = useSearchParams()
   const [message, setMessage] = useState('Recording your response...')
+  const called = useRef(false)
+
+  // Extract to primitives so the effect dep array uses stable string values
+  // rather than the SearchParams object reference (which changes every render).
+  const companyId = params.get('company_id') || ''
+  const action = params.get('action') || ''
 
   useEffect(() => {
-    const companyId = params.get('company_id') || ''
-    const action = params.get('action') || ''
+    if (called.current) return
+    called.current = true
 
     emailsApi.respondOutreach({ company_id: companyId, action })
       .then(() => {
@@ -21,7 +27,7 @@ function InterestRespondContent() {
         )
       })
       .catch((err) => setMessage(err.message))
-  }, [params])
+  }, [companyId, action])
 
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center px-6">

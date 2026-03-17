@@ -9,7 +9,14 @@
       "Bash(python3 -c \":*)",
       "Bash(powershell -File:*)",
       "Bash(__NEW_LINE_48ebd4db0236153b__ exit:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(grep -n \"demo_invite\\\\|email_templates\\\\|INSERT\" /f/AI-sales/sales_platform/backend/migrations/*.sql)",
+      "Bash(ls /f/AI-sales/sales_platform/backend/migrations/*.sql)",
+      "Bash(npm list:*)",
+      "Bash(npm install:*)",
+      "Bash(node generate_book.js)",
+      "Bash(find F:/AI-sales/sales_platform/src/app -type f -name *.tsx)"
     ]
   }
 }

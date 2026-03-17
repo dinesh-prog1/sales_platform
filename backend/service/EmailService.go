@@ -89,12 +89,21 @@ func (s *EmailService) SendBatchDirect(ctx context.Context, companies []models.C
 		return 0
 	}
 
+	// Batch dedup — one query instead of one per company.
+	ids := make([]string, len(companies))
+	for i, c := range companies {
+		ids[i] = c.ID
+	}
+	alreadySent, err := s.repo.GetSentCompanyIDs(ctx, ids, models.EmailTypeOutreach)
+	if err != nil {
+		log.Printf("[EmailService] Batch dedup check failed: %v — skipping batch", err)
+		return 0
+	}
+
 	sent := 0
 	bgCtx := context.Background()
 	for _, company := range companies {
-		// Skip companies that already have any outreach log entry
-		already, _ := s.repo.HasEmailBeenQueuedOrSent(ctx, company.ID, models.EmailTypeOutreach)
-		if already {
+		if alreadySent[company.ID] {
 			continue
 		}
 
@@ -108,29 +117,11 @@ func (s *EmailService) SendBatchDirect(ctx context.Context, companies []models.C
 			HTML:    true,
 		})
 
-		finalStatus := models.EmailStatusSent
-		errMsg := ""
 		if sendErr != nil {
-			finalStatus = models.EmailStatusFailed
-			errMsg = sendErr.Error()
 			log.Printf("[EmailService] Direct batch send failed for %s: %v", company.Email, sendErr)
 		}
+		s.writeEmailLog(company, models.EmailTypeOutreach, subject, body, sendErr)
 
-		logEntry := &models.EmailLog{
-			CompanyID:   company.ID,
-			Type:        models.EmailTypeOutreach,
-			Status:      finalStatus,
-			Subject:     subject,
-			Body:        body,
-			ToEmail:     company.Email,
-			ScheduledAt: time.Now(),
-		}
-		if createErr := s.repo.CreateLog(bgCtx, logEntry); createErr != nil {
-			log.Printf("[EmailService] Failed to write batch log for %s: %v", company.Email, createErr)
-		}
-		if logEntry.ID != "" {
-			_ = s.repo.UpdateLogStatus(bgCtx, logEntry.ID, finalStatus, errMsg)
-		}
 		if sendErr == nil {
 			if company.ID != "" {
 				_ = s.companyRepo.UpdateStatus(bgCtx, company.ID, models.CompanyStatusOutreachSent, "Outreach sent via scheduled batch")
@@ -156,15 +147,23 @@ func (s *EmailService) PreQueueNextBatch(ctx context.Context, companies []models
 	}
 	cfg.AppBaseURL = s.appBaseURL
 
+	// Batch dedup — one query instead of one per company.
+	ids := make([]string, len(companies))
+	for i, c := range companies {
+		ids[i] = c.ID
+	}
+	alreadySent, err := s.repo.GetSentCompanyIDs(ctx, ids, models.EmailTypeOutreach)
+	if err != nil {
+		return 0, fmt.Errorf("batch dedup check: %w", err)
+	}
+
 	// Schedule for tomorrow at cronHour (local server time)
 	now := time.Now()
 	tomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, cronHour, 0, 0, 0, now.Location())
 
 	preQueued := 0
 	for _, company := range companies {
-		// Skip if any outreach log already exists (sent today, or pre-queued earlier)
-		already, _ := s.repo.HasEmailBeenQueuedOrSent(ctx, company.ID, models.EmailTypeOutreach)
-		if already {
+		if alreadySent[company.ID] {
 			continue
 		}
 
@@ -212,14 +211,23 @@ func (s *EmailService) QueueOutreachEmails(ctx context.Context, companies []mode
 		return 0, fmt.Errorf("get outreach template: %w", err)
 	}
 
+	// Batch dedup — one query instead of one per company.
+	ids := make([]string, len(companies))
+	for i, c := range companies {
+		ids[i] = c.ID
+	}
+	alreadySent, err := s.repo.GetSentCompanyIDs(ctx, ids, models.EmailTypeOutreach)
+	if err != nil {
+		return 0, fmt.Errorf("batch dedup check: %w", err)
+	}
+
 	queued := 0
 	for _, c := range companies {
 		if int64(queued) >= remaining {
 			break
 		}
 
-		already, err := s.repo.HasEmailBeenQueuedOrSent(ctx, c.ID, models.EmailTypeOutreach)
-		if err != nil || already {
+		if alreadySent[c.ID] {
 			continue
 		}
 
@@ -259,15 +267,19 @@ func (s *EmailService) QueueOutreachEmails(ctx context.Context, companies []mode
 }
 
 // QueueEmailForCompany sends an individual triggered email directly via SMTP
-// (no queue, no scheduler). The log entry is created AFTER the send attempt
-// so the status is always the final outcome ('sent' or 'failed') — never 'queued'.
+// (no queue, no scheduler). The log entry is written with the final outcome
+// ('sent' or 'failed') — never 'queued'.
 func (s *EmailService) QueueEmailForCompany(ctx context.Context, company models.CompanyInfo, emailType models.EmailType) error {
-	already, err := s.repo.HasEmailBeenQueuedOrSent(ctx, company.ID, emailType)
-	if err != nil {
-		return err
-	}
-	if already {
-		return nil
+	// Dedup only applies to outreach emails (one per company lifetime).
+	// Demo invite and other triggered types are always sent when requested.
+	if emailType == models.EmailTypeOutreach {
+		already, err := s.repo.HasEmailBeenQueuedOrSent(ctx, company.ID, emailType)
+		if err != nil {
+			return err
+		}
+		if already {
+			return nil
+		}
 	}
 
 	cfg, err := s.repo.GetConfig(ctx)
@@ -284,43 +296,50 @@ func (s *EmailService) QueueEmailForCompany(ctx context.Context, company models.
 	subject := renderEmailTemplate(template.Subject, company, cfg)
 	body := renderEmailTemplate(template.Body, company, cfg)
 
-	// Send first — determine outcome before writing any log entry.
 	sendErr := s.mailer.Send(utils.EmailMessage{
 		To:      company.Email,
 		Subject: subject,
 		Body:    body,
 		HTML:    true,
 	})
-
-	bgCtx := context.Background()
-	finalStatus := models.EmailStatusSent
-	errMsg := ""
-	if sendErr != nil {
-		finalStatus = models.EmailStatusFailed
-		errMsg = sendErr.Error()
-	}
-
-	// Write the log entry directly with the final status — never 'queued'.
-	logEntry := &models.EmailLog{
-		CompanyID:   company.ID,
-		Type:        emailType,
-		Status:      finalStatus,
-		Subject:     subject,
-		Body:        body,
-		ToEmail:     company.Email,
-		ScheduledAt: time.Now(),
-	}
-	if createErr := s.repo.CreateLog(bgCtx, logEntry); createErr != nil {
-		log.Printf("[EmailService] Failed to write %s log for %s: %v", emailType, company.Email, createErr)
-	}
-	if logEntry.ID != "" {
-		_ = s.repo.UpdateLogStatus(bgCtx, logEntry.ID, finalStatus, errMsg)
-	}
+	s.writeEmailLog(company, emailType, subject, body, sendErr)
 
 	if sendErr != nil {
 		return fmt.Errorf("send email: %w", sendErr)
 	}
 	return nil
+}
+
+// writeEmailLog records the outcome of a direct SMTP send in email_logs.
+// It is fire-and-forget — DB errors are logged but not returned so callers stay
+// focused on the send result. Always uses a background context so the write
+// survives HTTP request cancellation.
+func (s *EmailService) writeEmailLog(company models.CompanyInfo, emailType models.EmailType, subject, body string, sendErr error) {
+	now := time.Now()
+	finalStatus := models.EmailStatusSent
+	var sentAt *time.Time
+	errMsg := ""
+	if sendErr == nil {
+		sentAt = &now
+	} else {
+		finalStatus = models.EmailStatusFailed
+		errMsg = sendErr.Error()
+	}
+
+	logEntry := &models.EmailLog{
+		CompanyID:    company.ID,
+		Type:         emailType,
+		Status:       finalStatus,
+		Subject:      subject,
+		Body:         body,
+		ToEmail:      company.Email,
+		ScheduledAt:  now,
+		SentAt:       sentAt,
+		ErrorMessage: errMsg,
+	}
+	if createErr := s.repo.CreateLog(context.Background(), logEntry); createErr != nil {
+		log.Printf("[EmailService] Failed to write %s log for %s: %v", emailType, company.Email, createErr)
+	}
 }
 
 func (s *EmailService) GetStats(ctx context.Context) (*models.EmailStats, error) {
@@ -420,20 +439,8 @@ func (s *EmailService) SendManualOutreach(ctx context.Context, req models.Manual
 }
 
 // sendDirectOutreach sends a manual outreach email immediately via SMTP (bypasses queue).
-// The log entry is created AFTER the send attempt, directly with the final status
-// ('sent' or 'failed') — it is never recorded as 'queued'.
+// Manual outreach bypasses dedup — admin explicitly triggered this send.
 func (s *EmailService) sendDirectOutreach(ctx context.Context, company models.CompanyInfo) error {
-	// Dedup: skip if outreach was already sent for this company
-	if company.ID != "" {
-		already, err := s.repo.HasEmailBeenQueuedOrSent(ctx, company.ID, models.EmailTypeOutreach)
-		if err != nil {
-			return fmt.Errorf("check dedup: %w", err)
-		}
-		if already {
-			return nil // silently skip, not an error
-		}
-	}
-
 	cfg, err := s.repo.GetConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
@@ -448,58 +455,25 @@ func (s *EmailService) sendDirectOutreach(ctx context.Context, company models.Co
 	subject := renderEmailTemplate(template.Subject, company, cfg)
 	body := renderEmailTemplate(template.Body, company, cfg)
 
-	// Send first — no log entry is written until we know the outcome.
 	sendErr := s.mailer.Send(utils.EmailMessage{
 		To:      company.Email,
 		Subject: subject,
 		Body:    body,
 		HTML:    true,
 	})
-
-	// Use a background context for all DB writes so they survive HTTP request cancellation.
-	bgCtx := context.Background()
-
-	// Determine final status and create the log entry directly with it — never 'queued'.
-	finalStatus := models.EmailStatusSent
-	errMsg := ""
-	if sendErr != nil {
-		finalStatus = models.EmailStatusFailed
-		errMsg = sendErr.Error()
-	}
-
-	logEntry := &models.EmailLog{
-		CompanyID:   company.ID,
-		Type:        models.EmailTypeOutreach,
-		Status:      finalStatus,
-		Subject:     subject,
-		Body:        body,
-		ToEmail:     company.Email,
-		ScheduledAt: time.Now(),
-	}
-	if createErr := s.repo.CreateLog(bgCtx, logEntry); createErr != nil {
-		log.Printf("[EmailService] Failed to write outreach log for %s: %v", company.Email, createErr)
-	}
-
-	// Set sent_at / error_message via a single UPDATE using the returned ID.
-	if logEntry.ID != "" {
-		_ = s.repo.UpdateLogStatus(bgCtx, logEntry.ID, finalStatus, errMsg)
-	}
+	s.writeEmailLog(company, models.EmailTypeOutreach, subject, body, sendErr)
 
 	if sendErr != nil {
 		return fmt.Errorf("send email: %w", sendErr)
 	}
 
-	// Update company pipeline status
 	if company.ID != "" {
-		_ = s.companyRepo.UpdateStatus(bgCtx, company.ID, models.CompanyStatusOutreachSent, "Manual outreach sent directly")
+		_ = s.companyRepo.UpdateStatus(context.Background(), company.ID, models.CompanyStatusOutreachSent, "Manual outreach sent directly")
 	}
-
 	return nil
 }
 
 // SendDemoConfirmation sends the demo_confirm email directly via SMTP.
-// The log entry is created AFTER the send attempt with the final status
-// ('sent' or 'failed') — it is never recorded as 'queued'.
 func (s *EmailService) SendDemoConfirmation(ctx context.Context, companyID, toEmail, toName, companyName, meetingLink string, scheduledAt time.Time) error {
 	template, err := s.repo.GetTemplate(ctx, models.EmailTypeDemoConfirm)
 	if err != nil || template == nil {
@@ -509,7 +483,7 @@ func (s *EmailService) SendDemoConfirmation(ctx context.Context, companyID, toEm
 	if err != nil {
 		return fmt.Errorf("get config: %w", err)
 	}
-	cInfo := models.CompanyInfo{Name: companyName, Email: toEmail, ContactPerson: toName}
+	cInfo := models.CompanyInfo{ID: companyID, Name: companyName, Email: toEmail, ContactPerson: toName}
 	cfg.AppBaseURL = s.appBaseURL
 
 	subject := renderEmailTemplate(template.Subject, cInfo, cfg)
@@ -517,38 +491,13 @@ func (s *EmailService) SendDemoConfirmation(ctx context.Context, companyID, toEm
 	body = strings.ReplaceAll(body, "{{scheduled_at}}", scheduledAt.Format("Monday, January 2, 2006 at 3:04 PM UTC"))
 	body = strings.ReplaceAll(body, "{{meeting_link}}", meetingLink)
 
-	// Send first — determine outcome before writing any log entry.
 	sendErr := s.mailer.Send(utils.EmailMessage{
 		To:      toEmail,
 		Subject: subject,
 		Body:    body,
 		HTML:    true,
 	})
-
-	bgCtx := context.Background()
-	finalStatus := models.EmailStatusSent
-	errMsg := ""
-	if sendErr != nil {
-		finalStatus = models.EmailStatusFailed
-		errMsg = sendErr.Error()
-	}
-
-	// Write the log entry directly with the final status — never 'queued'.
-	logEntry := &models.EmailLog{
-		CompanyID:   companyID,
-		Type:        models.EmailTypeDemoConfirm,
-		Status:      finalStatus,
-		Subject:     subject,
-		Body:        body,
-		ToEmail:     toEmail,
-		ScheduledAt: time.Now(),
-	}
-	if createErr := s.repo.CreateLog(bgCtx, logEntry); createErr != nil {
-		log.Printf("[EmailService] Failed to write demo_confirm log for %s: %v", toEmail, createErr)
-	}
-	if logEntry.ID != "" {
-		_ = s.repo.UpdateLogStatus(bgCtx, logEntry.ID, finalStatus, errMsg)
-	}
+	s.writeEmailLog(cInfo, models.EmailTypeDemoConfirm, subject, body, sendErr)
 
 	if sendErr != nil {
 		return fmt.Errorf("send demo confirm: %w", sendErr)

@@ -20,10 +20,22 @@ func NewEmailRepository(db *helper.DB) *EmailRepository {
 	return &EmailRepository{db: db}
 }
 
+// GetLogStatus returns the current status of an email log entry, or "" if not found.
+func (r *EmailRepository) GetLogStatus(ctx context.Context, id string) (models.EmailStatus, error) {
+	var status models.EmailStatus
+	err := r.db.Pool.QueryRow(ctx, `SELECT status FROM email_logs WHERE id = $1`, id).Scan(&status)
+	if err == pgx.ErrNoRows {
+		return "", nil
+	}
+	return status, err
+}
+
 func (r *EmailRepository) CreateLog(ctx context.Context, log *models.EmailLog) error {
+	// sent_at and error_message are written on INSERT so a second UpdateLogStatus
+	// call is never needed for direct-send paths.
 	query := `
-		INSERT INTO email_logs (company_id, type, status, subject, body, to_email, scheduled_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO email_logs (company_id, type, status, subject, body, to_email, scheduled_at, sent_at, error_message)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id::text, created_at, updated_at`
 
 	var companyID *string
@@ -33,7 +45,35 @@ func (r *EmailRepository) CreateLog(ctx context.Context, log *models.EmailLog) e
 
 	return r.db.Pool.QueryRow(ctx, query,
 		companyID, log.Type, log.Status, log.Subject, log.Body, log.ToEmail, log.ScheduledAt,
+		log.SentAt, log.ErrorMessage,
 	).Scan(&log.ID, &log.CreatedAt, &log.UpdatedAt)
+}
+
+// GetSentCompanyIDs returns the subset of the given company IDs that already have any
+// email log entry of the specified type. One query instead of N HasEmailBeenQueuedOrSent
+// calls — use this inside batch loops.
+func (r *EmailRepository) GetSentCompanyIDs(ctx context.Context, companyIDs []string, emailType models.EmailType) (map[string]bool, error) {
+	if len(companyIDs) == 0 {
+		return map[string]bool{}, nil
+	}
+	rows, err := r.db.Pool.Query(ctx,
+		`SELECT DISTINCT company_id::text FROM email_logs WHERE company_id = ANY($1::uuid[]) AND type = $2`,
+		companyIDs, emailType,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sent := make(map[string]bool, len(companyIDs))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		sent[id] = true
+	}
+	return sent, nil
 }
 
 func (r *EmailRepository) UpdateLogStatus(ctx context.Context, id string, status models.EmailStatus, errMsg string) error {
