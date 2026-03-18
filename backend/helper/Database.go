@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,8 +44,20 @@ func (db *DB) Close() {
 	db.Pool.Close()
 }
 
-// ApplyMigrations reads and executes SQL migration files in order.
+// ApplyMigrations runs each migration file exactly once, tracking applied
+// migrations in a schema_migrations table. Safe to call on every startup.
 func ApplyMigrations(ctx context.Context, db *DB) error {
+	// Ensure the tracking table exists.
+	_, err := db.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			filename   TEXT PRIMARY KEY,
+			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("create schema_migrations table: %w", err)
+	}
+
 	migrations := []string{
 		"migrations/001_init.sql",
 		"migrations/002_demo_booking_updates.sql",
@@ -57,6 +70,18 @@ func ApplyMigrations(ctx context.Context, db *DB) error {
 	}
 
 	for _, path := range migrations {
+		// Skip if already applied.
+		var already bool
+		err := db.Pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE filename = $1)`, path,
+		).Scan(&already)
+		if err != nil {
+			return fmt.Errorf("check migration %s: %w", path, err)
+		}
+		if already {
+			continue
+		}
+
 		data, err := readFile(path)
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", path, err)
@@ -64,6 +89,15 @@ func ApplyMigrations(ctx context.Context, db *DB) error {
 		if _, err := db.Pool.Exec(ctx, string(data)); err != nil {
 			return fmt.Errorf("apply migration %s: %w", path, err)
 		}
+
+		// Record it as applied.
+		if _, err := db.Pool.Exec(ctx,
+			`INSERT INTO schema_migrations (filename) VALUES ($1)`, path,
+		); err != nil {
+			return fmt.Errorf("record migration %s: %w", path, err)
+		}
+
+		log.Printf("  ✓ applied %s", path)
 	}
 
 	return nil

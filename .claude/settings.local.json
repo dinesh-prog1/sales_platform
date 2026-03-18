@@ -55,7 +55,18 @@
       "Bash(PGPASSWORD=aisales_secret /c/postgresql-18.3-2-windows-x64-binaries/pgsql/bin/psql -h 127.0.0.1 -p 5432 -U aisales_user -d aisales -c \"SELECT 1\")",
       "Bash(PGPASSWORD=aisales_secret /c/postgresql-18.3-2-windows-x64-binaries/pgsql/bin/psql -h 127.0.0.1 -p 5433 -U aisales_user -d aisales -c \"SELECT 1\")",
       "Bash(/c/postgresql-18.3-2-windows-x64-binaries/pgsql/bin/psql -h 127.0.0.1 -p 5432 -U aisales_user -d aisales -c \"SELECT 1\")",
-      "Bash(curl -s http://localhost:8080/api/v1/emails/templates)"
+      "Bash(curl -s http://localhost:8080/api/v1/emails/templates)",
+      "Bash(PGPASSWORD=Dinesh psql -U postgres -h localhost -p 5432 -d aisales -c \"DELETE FROM schema_migrations WHERE filename = ''migrations/008_multi_templates.sql'';\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8080)",
+      "Bash(taskkill /PID 61996 /F)",
+      "Bash(cmd /c \"taskkill /PID 61996 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 61996 -Force\")",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3000 -State Listen | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(powershell -Command \"Stop-Process -Id 78252 -Force\")",
+      "Bash(powershell -Command \"Get-Command npm | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:/Program Files/nodejs/'' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-Command node | Select-Object -ExpandProperty Source\")"
     ]
   }
 }

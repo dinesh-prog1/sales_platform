@@ -10,7 +10,10 @@ ALTER TABLE email_templates ADD COLUMN IF NOT EXISTS name VARCHAR(100) NOT NULL 
 ALTER TABLE email_templates DROP CONSTRAINT IF EXISTS email_templates_type_key;
 
 -- Step 3: Add a new UNIQUE constraint on (type, name) to prevent duplicate names within a type.
-ALTER TABLE email_templates ADD CONSTRAINT email_templates_type_name_key UNIQUE (type, name);
+DO $$ BEGIN
+    ALTER TABLE email_templates ADD CONSTRAINT email_templates_type_name_key UNIQUE (type, name);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
 
 -- Step 4: Create a partial unique index so at most ONE active template exists per type.
 -- This is the database-level guarantee for "only one active template per section".

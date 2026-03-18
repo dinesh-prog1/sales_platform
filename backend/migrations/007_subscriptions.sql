@@ -42,7 +42,8 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 -- ── Trial conversion email template ─────────────────────────────────────────
-INSERT INTO email_templates (type, subject, body, is_active) VALUES (
+INSERT INTO email_templates (type, subject, body, is_active)
+SELECT * FROM (VALUES (
     'trial_conversion',
     'Your free trial ends in 3 days — Choose your plan, {{company_name}}',
     '<!DOCTYPE html>
@@ -139,4 +140,5 @@ INSERT INTO email_templates (type, subject, body, is_active) VALUES (
   </body>
 </html>',
     true
-) ON CONFLICT (type) DO NOTHING;
+)) AS v(type, subject, body, is_active)
+WHERE NOT EXISTS (SELECT 1 FROM email_templates e WHERE e.type = v.type);

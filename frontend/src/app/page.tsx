@@ -8,7 +8,7 @@ import { DashboardData } from '@/types'
 import {
   Building2, Mail, Handshake, CalendarCheck,
   FlaskConical, TrendingUp, UserX, MessageSquare,
-  Upload, CalendarDays, Clock, ArrowRight
+  Upload, CalendarDays, Clock, ArrowRight, RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -22,11 +22,23 @@ function spark(base: number, count = 7): number[] {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const refresh = () => {
+    setRefreshing(true)
+    analyticsApi.dashboard().then(setData).finally(() => setRefreshing(false))
+  }
 
   useEffect(() => {
     analyticsApi.dashboard()
       .then(setData)
       .finally(() => setLoading(false))
+
+    const interval = setInterval(() => {
+      analyticsApi.dashboard().then(setData)
+    }, 30_000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const now = new Date()
@@ -72,6 +84,15 @@ export default function DashboardPage() {
               <div className="status-dot active" />
               <span className="text-white/50 text-xs font-medium">Automation Active</span>
             </div>
+            <button
+              onClick={refresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-2 hover:bg-white/[0.08] transition-colors disabled:opacity-50"
+              title="Refresh metrics"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-white/50 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="text-white/50 text-xs font-medium">Refresh</span>
+            </button>
           </div>
         </div>
       </div>

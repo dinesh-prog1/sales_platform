@@ -139,8 +139,10 @@ INSERT INTO email_configs (emails_per_day, target_size, batch_interval_minutes, 
 VALUES (50, 'all', 60, 'https://calendly.com/your-link')
 ON CONFLICT DO NOTHING;
 
--- Insert default email templates
-INSERT INTO email_templates (type, subject, body) VALUES
+-- Insert default email templates (idempotent: skip any type that already exists)
+INSERT INTO email_templates (type, subject, body)
+SELECT v.type, v.subject, v.body
+FROM (VALUES
 (
     'outreach',
     'Transform Your Sales Pipeline with AI — {{company_name}}',
@@ -284,7 +286,8 @@ Alex Johnson
 AI Sales Platform Team
 P.S. If anything has changed and you''d like to give us another shot, just reply to this email!'
 )
-ON CONFLICT (type) DO NOTHING;
+) AS v(type, subject, body)
+WHERE NOT EXISTS (SELECT 1 FROM email_templates e WHERE e.type = v.type);
 
 UPDATE email_templates
 SET
