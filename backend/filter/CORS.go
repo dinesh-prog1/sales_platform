@@ -11,10 +11,13 @@ type CORSOptions struct {
 	AllowedOrigins []string
 }
 
-// DefaultCORSOptions returns sensible production CORS defaults.
-func DefaultCORSOptions() cors.Options {
+// DefaultCORSOptions returns configurable CORS defaults.
+func DefaultCORSOptions(allowedOrigins []string) cors.Options {
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"http://localhost:3000"}
+	}
 	return cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

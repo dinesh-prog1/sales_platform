@@ -90,7 +90,7 @@ func main() {
 	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	httpHandler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl)
+	httpHandler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
 
 	// Scheduler
 	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)

@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/aisales/backend/controller"
+	"github.com/aisales/backend/filter"
+	"github.com/aisales/backend/helper"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 )
 
 // Build assembles the complete HTTP router with all routes and middleware.
@@ -20,6 +21,7 @@ func Build(
 	ic *controller.InterestController,
 	ac *controller.AnalyticsController,
 	sc *controller.SubscriptionController,
+	cfg *helper.AppConfig,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -29,13 +31,7 @@ func Build(
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
+	r.Use(filter.Middleware(filter.DefaultCORSOptions(cfg.CORSAllowedOrigins)))
 
 	// Health check
 	r.Get("/health", func(w http.ResponseWriter, req *http.Request) {
@@ -49,6 +45,7 @@ func Build(
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(filter.AdminAuth(cfg.AdminAPIToken))
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"version": "1.0.0"})
 		})

@@ -112,7 +112,7 @@ func main() {
 	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	handler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl)
+	handler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

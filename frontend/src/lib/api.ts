@@ -1,11 +1,43 @@
 import axios from 'axios'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+const ADMIN_TOKEN_KEY = 'aisales_admin_token'
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
+})
+
+function getAdminToken() {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem(ADMIN_TOKEN_KEY)
+    if (stored) return stored
+  }
+  return process.env.NEXT_PUBLIC_ADMIN_API_TOKEN || ''
+}
+
+function isPublicEndpoint(url?: string) {
+  if (!url) return false
+
+  return (
+    url === '/emails/respond-outreach' ||
+    url === '/demos/book' ||
+    url === '/demos/public-schedule' ||
+    url.startsWith('/demos/slots') ||
+    url === '/trials/respond' ||
+    url === '/subscriptions'
+  )
+}
+
+api.interceptors.request.use((config) => {
+  if (!isPublicEndpoint(config.url)) {
+    const token = getAdminToken()
+    if (token) {
+      config.headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+  return config
 })
 
 api.interceptors.response.use(
@@ -132,4 +164,9 @@ export const subscriptionsApi = {
 // Analytics
 export const analyticsApi = {
   dashboard: () => api.get('/analytics/dashboard').then(r => r.data),
+}
+
+export const adminAuthStorage = {
+  key: ADMIN_TOKEN_KEY,
+  get: getAdminToken,
 }
