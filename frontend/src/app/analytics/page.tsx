@@ -134,11 +134,18 @@ function InsightCard({ message, level, detail }: { message: string; level: 'good
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     analyticsApi.dashboard()
-      .then(setData)
-      .catch((err: any) => toast.error(err.message))
+      .then((response) => {
+        setData(response)
+        setError(null)
+      })
+      .catch((err: Error) => {
+        setError(err.message)
+        toast.error(err.message)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -246,6 +253,25 @@ export default function AnalyticsPage() {
       <div className="p-5"><LoadingSpinner size="lg" /></div>
     </>
   )
+
+  if (!data) {
+    return (
+      <>
+        <Header title="Analytics" subtitle="Pipeline insights and performance" />
+        <div className="p-5">
+          <div className="card !py-6 !px-5">
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-4 h-4" strokeWidth={1.5} />
+              <p className="text-sm font-medium">{error || 'Analytics data is unavailable right now.'}</p>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">
+              Confirm the backend is serving <code>/api/v1/analytics/dashboard</code> and that the admin token is valid.
+            </p>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>

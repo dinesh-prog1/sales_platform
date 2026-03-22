@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import toast from 'react-hot-toast'
 
 function spark(base: number, count = 7): number[] {
   return Array.from({ length: count }, (_, i) =>
@@ -23,19 +24,33 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadDashboard = async (showToast = false) => {
+    try {
+      const response = await analyticsApi.dashboard()
+      setData(response)
+      setError(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load dashboard data'
+      setError(message)
+      if (showToast) {
+        toast.error(message)
+      }
+    }
+  }
 
   const refresh = () => {
     setRefreshing(true)
-    analyticsApi.dashboard().then(setData).finally(() => setRefreshing(false))
+    loadDashboard(true).finally(() => setRefreshing(false))
   }
 
   useEffect(() => {
-    analyticsApi.dashboard()
-      .then(setData)
+    loadDashboard()
       .finally(() => setLoading(false))
 
     const interval = setInterval(() => {
-      analyticsApi.dashboard().then(setData)
+      loadDashboard()
     }, 30_000)
 
     return () => clearInterval(interval)
@@ -51,6 +66,25 @@ export default function DashboardPage() {
       <LoadingSpinner size="lg" />
     </div>
   )
+
+  if (!data) {
+    return (
+      <div className="p-7">
+        <div className="rounded-2xl border border-red-100 bg-red-50 px-5 py-4">
+          <h2 className="text-base font-semibold text-red-700">Dashboard unavailable</h2>
+          <p className="mt-2 text-sm text-red-600">{error || 'Unable to load analytics data.'}</p>
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const d = data
 

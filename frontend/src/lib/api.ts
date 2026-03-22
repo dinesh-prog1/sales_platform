@@ -1,10 +1,20 @@
 import axios from 'axios'
 
+const API_PREFIX = '/api/v1'
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const ADMIN_TOKEN_KEY = 'aisales_admin_token'
 
+function normalizeApiBaseUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim().replace(/\/+$/, '')
+  if (!trimmed) return 'http://localhost:8080'
+  if (trimmed.endsWith(API_PREFIX)) {
+    return trimmed.slice(0, -API_PREFIX.length)
+  }
+  return trimmed
+}
+
 export const api = axios.create({
-  baseURL: `${BASE_URL}/api/v1`,
+  baseURL: `${normalizeApiBaseUrl(BASE_URL)}${API_PREFIX}`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 })
@@ -43,8 +53,31 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const msg = err.response?.data?.error || err.message || 'Unknown error'
-    return Promise.reject(new Error(msg))
+    const status = err.response?.status
+    const method = err.config?.method?.toUpperCase()
+    const url = err.config?.url
+    const serverMessage =
+      typeof err.response?.data?.error === 'string'
+        ? err.response.data.error
+        : typeof err.response?.data?.message === 'string'
+          ? err.response.data.message
+          : ''
+
+    const fallback = status
+      ? `Request failed with status ${status}${method && url ? ` for ${method} ${url}` : ''}`
+      : err.message || 'Unknown network error'
+
+    const error = new Error(serverMessage || fallback) as Error & {
+      status?: number
+      method?: string
+      url?: string
+    }
+
+    error.status = status
+    error.method = method
+    error.url = url
+
+    return Promise.reject(error)
   }
 )
 
@@ -170,3 +203,5 @@ export const adminAuthStorage = {
   key: ADMIN_TOKEN_KEY,
   get: getAdminToken,
 }
+
+export const API_BASE_URL = api.defaults.baseURL || `${normalizeApiBaseUrl(BASE_URL)}${API_PREFIX}`

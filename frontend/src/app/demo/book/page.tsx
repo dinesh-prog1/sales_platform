@@ -103,7 +103,7 @@ function BookingForm() {
             <CalendarDays className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">Book a Product Demo</h1>
-          <p className="text-gray-500 text-sm mt-2">Choose a date and time that works for you. We'll send a Google Meet link.</p>
+          <p className="text-gray-500 text-sm mt-2">Choose a date and time that works for you. We&apos;ll send a Google Meet link.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

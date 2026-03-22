@@ -514,13 +514,32 @@ export default function DemosPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
-  const [sessionKey, setSessionKey] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<DemoBooking | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [editTarget, setEditTarget] = useState<DemoBooking | null>(null)
   const [editForm, setEditForm] = useState({ status: '', meeting_link: '', notes: '', scheduled_at: '', time_slot: '' })
   const [saving, setSaving] = useState(false)
   const [reminder, setReminder] = useState<'1h' | '1d' | 'off'>('1h')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [res, statsRes] = await Promise.all([
+        viewMode === 'upcoming'
+          ? demosApi.upcoming({ page, limit: 15, status: statusFilter })
+          : demosApi.list({ page, limit: 15, status: statusFilter }),
+        demosApi.stats(),
+      ])
+      setDemos(res.bookings || [])
+      setTotal(res.total || 0)
+      setTotalPages(res.total_pages || 1)
+      setStats(statsRes)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [page, statusFilter, viewMode])
 
   const openEdit = (demo: DemoBooking) => {
     setEditTarget(demo)
@@ -546,35 +565,15 @@ export default function DemosPage() {
         notes: editForm.notes,
         scheduled_at: scheduledDate?.toISOString(),
       })
+      await load()
       toast.success('Demo booking updated')
       setEditTarget(null)
-      setSessionKey(k => k + 1)
     } catch (err: any) {
       toast.error(err.message || 'Update failed')
     } finally {
       setSaving(false)
     }
   }
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [res, statsRes] = await Promise.all([
-        viewMode === 'upcoming'
-          ? demosApi.upcoming({ page, limit: 15, status: statusFilter })
-          : demosApi.list({ page, limit: 15, status: statusFilter }),
-        demosApi.stats(),
-      ])
-      setDemos(res.bookings || [])
-      setTotal(res.total || 0)
-      setTotalPages(res.total_pages || 1)
-      setStats(statsRes)
-    } catch (err: any) {
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [page, statusFilter, viewMode, sessionKey])
 
   useEffect(() => { load() }, [load])
 
@@ -583,11 +582,9 @@ export default function DemosPage() {
     setDeleting(true)
     try {
       await demosApi.delete(deleteTarget.id)
+      await load()
       toast.success('Booking deleted')
-      setDemos(prev => prev.filter(d => d.id !== deleteTarget.id))
-      setTotal(prev => Math.max(0, prev - 1))
       setDeleteTarget(null)
-      setSessionKey(k => k + 1)
     } catch (err: any) {
       toast.error(err.message || 'Delete failed')
     } finally {
