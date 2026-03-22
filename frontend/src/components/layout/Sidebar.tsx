@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { adminAuthStorage } from '@/lib/api'
 import {
   LayoutDashboard, Building2, Mail, CalendarDays,
-  FlaskConical, BarChart3, Settings, Zap
+  FlaskConical, BarChart3, Settings, Zap, LogOut
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -74,6 +75,21 @@ export default function Sidebar() {
             <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-[#161650] rotate-45 border-l border-b border-white/[0.06]" />
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            adminAuthStorage.clear()
+            window.location.reload()
+          }}
+          className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center group relative text-white/30 hover:text-white/70 hover:bg-white/[0.04]"
+          title="Sign out"
+        >
+          <LogOut className="w-4 h-4" strokeWidth={1.5} />
+          <div className="absolute left-full ml-3 px-3 py-1.5 bg-[#161650] text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none shadow-xl border border-white/[0.06] z-[60]">
+            Sign Out
+            <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-[#161650] rotate-45 border-l border-b border-white/[0.06]" />
+          </div>
+        </button>
       </div>
     </div>
   )

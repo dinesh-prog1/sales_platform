@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const API_PREFIX = '/api/v1'
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-const ADMIN_TOKEN_KEY = 'aisales_admin_token'
+const AUTH_TOKEN_KEY = 'aisales_admin_jwt'
 
 function normalizeApiBaseUrl(rawUrl: string) {
   const trimmed = rawUrl.trim().replace(/\/+$/, '')
@@ -19,18 +19,19 @@ export const api = axios.create({
   timeout: 30000,
 })
 
-function getAdminToken() {
+function getAuthToken() {
   if (typeof window !== 'undefined') {
-    const stored = window.localStorage.getItem(ADMIN_TOKEN_KEY)
+    const stored = window.localStorage.getItem(AUTH_TOKEN_KEY)
     if (stored) return stored
   }
-  return process.env.NEXT_PUBLIC_ADMIN_API_TOKEN || ''
+  return ''
 }
 
 function isPublicEndpoint(url?: string) {
   if (!url) return false
 
   return (
+    url === '/auth/login' ||
     url === '/emails/respond-outreach' ||
     url === '/demos/book' ||
     url === '/demos/public-schedule' ||
@@ -42,7 +43,7 @@ function isPublicEndpoint(url?: string) {
 
 api.interceptors.request.use((config) => {
   if (!isPublicEndpoint(config.url)) {
-    const token = getAdminToken()
+    const token = getAuthToken()
     if (token) {
       config.headers.set('Authorization', `Bearer ${token}`)
     }
@@ -62,6 +63,20 @@ api.interceptors.response.use(
         : typeof err.response?.data?.message === 'string'
           ? err.response.data.message
           : ''
+
+    if (status === 401 && typeof window !== 'undefined') {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY)
+      const pathname = window.location.pathname
+      const isPublicPage =
+        pathname.startsWith('/demo/') ||
+        pathname.startsWith('/interest/') ||
+        pathname.startsWith('/trial/') ||
+        pathname.startsWith('/payment/')
+
+      if (!isPublicPage) {
+        window.location.reload()
+      }
+    }
 
     const fallback = status
       ? `Request failed with status ${status}${method && url ? ` for ${method} ${url}` : ''}`
@@ -200,8 +215,18 @@ export const analyticsApi = {
 }
 
 export const adminAuthStorage = {
-  key: ADMIN_TOKEN_KEY,
-  get: getAdminToken,
+  key: AUTH_TOKEN_KEY,
+  get: getAuthToken,
+  set: (token: string) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token)
+    }
+  },
+  clear: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY)
+    }
+  },
 }
 
 export const API_BASE_URL = api.defaults.baseURL || `${normalizeApiBaseUrl(BASE_URL)}${API_PREFIX}`
