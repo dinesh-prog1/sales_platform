@@ -509,6 +509,7 @@ export default function DemosPage() {
   const [demos, setDemos] = useState<DemoBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<any>(null)
+  const [sessionKey, setSessionKey] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
   const [viewMode, setViewMode] = useState<'upcoming' | 'all'>('upcoming')
   const [page, setPage] = useState(1)
@@ -539,7 +540,7 @@ export default function DemosPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, statusFilter, viewMode])
+  }, [page, sessionKey, statusFilter, viewMode])
 
   const openEdit = (demo: DemoBooking) => {
     setEditTarget(demo)

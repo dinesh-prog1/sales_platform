@@ -103,6 +103,7 @@ func main() {
 	go sched.Start(ctx)
 
 	// Controllers
+	authCtrl := controller.NewAuthController(cfg)
 	companyCtrl := controller.NewCompanyController(companySvc)
 	emailCtrl := controller.NewEmailController(emailSvc)
 	demoCtrl := controller.NewDemoController(demoSvc)
@@ -112,7 +113,7 @@ func main() {
 	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	handler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
+	handler := routers.Build(authCtrl, companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

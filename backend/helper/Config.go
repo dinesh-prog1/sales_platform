@@ -14,6 +14,8 @@ type AppConfig struct {
 	AppBaseURL         string
 	JWTSecret          string
 	AdminAPIToken      string
+	AdminEmail         string
+	AdminPassword      string
 	CORSAllowedOrigins []string
 	DatabaseURL        string
 	RedisURL           string
@@ -51,6 +53,8 @@ func LoadConfig() (*AppConfig, error) {
 		AppBaseURL:         getEnv("APP_BASE_URL", "http://localhost:3000"),
 		JWTSecret:          getEnv("JWT_SECRET", "dev-secret-key"),
 		AdminAPIToken:      getEnv("ADMIN_API_TOKEN", ""),
+		AdminEmail:         getEnv("ADMIN_EMAIL", "admin@localhost"),
+		AdminPassword:      getEnv("ADMIN_PASSWORD", ""),
 		CORSAllowedOrigins: getEnvList("CORS_ALLOWED_ORIGINS", []string{getEnv("APP_BASE_URL", "http://localhost:3000")}),
 		DatabaseURL:        getEnv("DATABASE_URL", "postgres://aisales_user:aisales_secret@localhost:5432/aisales?sslmode=disable"),
 		RedisURL:           getEnv("REDIS_URL", "redis://:aisales_redis_secret@localhost:6379/0"),
@@ -102,8 +106,16 @@ func getEnvList(key string, fallback []string) []string {
 }
 
 func validateConfig(cfg *AppConfig) error {
-	if strings.EqualFold(cfg.Environment, "production") && strings.TrimSpace(cfg.AdminAPIToken) == "" {
-		return fmt.Errorf("ADMIN_API_TOKEN is required when ENVIRONMENT=production")
+	if strings.TrimSpace(cfg.AdminPassword) == "" {
+		return fmt.Errorf("ADMIN_PASSWORD is required")
+	}
+	if strings.EqualFold(cfg.Environment, "production") {
+		if strings.TrimSpace(cfg.AdminEmail) == "" {
+			return fmt.Errorf("ADMIN_EMAIL is required when ENVIRONMENT=production")
+		}
+		if strings.TrimSpace(cfg.JWTSecret) == "" || cfg.JWTSecret == "dev-secret-key" || cfg.JWTSecret == "change-this" {
+			return fmt.Errorf("JWT_SECRET must be set to a strong secret when ENVIRONMENT=production")
+		}
 	}
 	return nil
 }

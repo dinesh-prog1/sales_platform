@@ -81,6 +81,7 @@ func main() {
 	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, trialRepo, companyRepo)
 
 	// Controllers
+	authCtrl := controller.NewAuthController(cfg)
 	companyCtrl := controller.NewCompanyController(companySvc)
 	emailCtrl := controller.NewEmailController(emailSvc)
 	demoCtrl := controller.NewDemoController(demoSvc)
@@ -90,7 +91,7 @@ func main() {
 	subscriptionCtrl := controller.NewSubscriptionController(subscriptionSvc)
 
 	// Router
-	httpHandler := routers.Build(companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
+	httpHandler := routers.Build(authCtrl, companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
 
 	// Scheduler
 	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)

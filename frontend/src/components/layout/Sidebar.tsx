@@ -81,7 +81,7 @@ export default function Sidebar() {
             adminAuthStorage.clear()
             window.location.reload()
           }}
-          className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center group relative text-white/30 hover:text-white/70 hover:bg-white/[0.04]"
+          className="w-10 h-10 rounded-xl bg-white/[0.04] flex items-center justify-center group relative text-white/30 hover:text-white/70 hover:bg-white/[0.04] transition-all duration-200"
           title="Sign out"
         >
           <LogOut className="w-4 h-4" strokeWidth={1.5} />

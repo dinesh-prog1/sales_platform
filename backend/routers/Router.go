@@ -14,6 +14,7 @@ import (
 
 // Build assembles the complete HTTP router with all routes and middleware.
 func Build(
+	authc *controller.AuthController,
 	cc *controller.CompanyController,
 	ec *controller.EmailController,
 	dc *controller.DemoController,
@@ -45,10 +46,11 @@ func Build(
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(filter.AdminAuth(cfg.AdminAPIToken))
+		r.Use(filter.AdminAuth(cfg.JWTSecret, cfg.AdminAPIToken))
 		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"version": "1.0.0"})
 		})
+		authc.RegisterRoutes(r)
 		cc.RegisterRoutes(r)
 		ec.RegisterRoutes(r)
 		dc.RegisterRoutes(r)
