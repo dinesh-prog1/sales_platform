@@ -61,6 +61,7 @@ func (db *DB) UnlockAdvisoryLock(ctx context.Context, key int64) error {
 // migrations in a schema_migrations table. Safe to call on every startup.
 func ApplyMigrations(ctx context.Context, db *DB) error {
 	const migrationLockKey int64 = 20260323
+	var err error
 
 	if _, err := db.Pool.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
 		return fmt.Errorf("acquire migration advisory lock: %w", err)
