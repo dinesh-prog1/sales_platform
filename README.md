@@ -9,9 +9,14 @@ This repo is now set up for an AWS-oriented deployment flow:
 
 Backend:
 
+- `RUNTIME_ROLE=api` for the API service, `worker` for the mail worker, `scheduler` for timed jobs
 - `ENVIRONMENT=production`
 - `PORT=8080`
 - `APP_BASE_URL=https://your-frontend-domain`
+- `PRODUCT_URL`, `TRIAL_START_URL`, `UPGRADE_URL`, `FEEDBACK_URL` for links used in outbound emails
+- `ADMIN_EMAIL=admin@your-domain`
+- `ADMIN_PASSWORD=<strong-random-password>`
+- `JWT_SECRET=<strong-random-secret>`
 - `ADMIN_API_TOKEN=<strong-random-secret>`
 - `CORS_ALLOWED_ORIGINS=https://your-frontend-domain`
 - `DATABASE_URL=<RDS PostgreSQL URL>`
@@ -22,20 +27,26 @@ Backend:
 Frontend:
 
 - `NEXT_PUBLIC_API_URL=https://your-api-domain`
-- `NEXT_PUBLIC_ADMIN_API_TOKEN=` optional for non-production convenience only
 
 ## Recommended AWS Services
 
 - Frontend: AWS Amplify or containerized Next.js on ECS/App Runner
 - Backend API: ECS Fargate or App Runner
 - Worker: separate ECS/App Runner service using `backend/Dockerfile.worker`
+- Scheduler: separate ECS/App Runner service using `backend/Dockerfile.scheduler`
 - PostgreSQL: Amazon RDS
 - Redis: Amazon ElastiCache
 - Secrets: AWS Secrets Manager or SSM Parameter Store
 
+## Recommended Runtime Split
+
+- Run the API with `RUNTIME_ROLE=api` and scale it horizontally as needed.
+- Run exactly one scheduler task with `RUNTIME_ROLE=scheduler`. The scheduler now also takes a PostgreSQL advisory lock so only one active scheduler can run timed jobs at once.
+- Run one or more worker tasks with `RUNTIME_ROLE=worker` depending on email throughput.
+
 ## Admin Access
 
-Admin API routes now require `Authorization: Bearer <ADMIN_API_TOKEN>` or `X-Admin-Token`.
+Admin API routes accept either a JWT from `/api/v1/auth/login` or `X-Admin-Token: <ADMIN_API_TOKEN>`.
 
 Public routes that remain open:
 

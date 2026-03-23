@@ -19,15 +19,23 @@ type EmailService struct {
 	companyRepo *repository.CompanyRepository
 	mailer      *utils.Mailer
 	appBaseURL  string
+	productURL  string
+	trialURL    string
+	upgradeURL  string
+	feedbackURL string
 }
 
-func NewEmailService(repo *repository.EmailRepository, q helper.Queue, companyRepo *repository.CompanyRepository, mailer *utils.Mailer, appBaseURL string) *EmailService {
+func NewEmailService(repo *repository.EmailRepository, q helper.Queue, companyRepo *repository.CompanyRepository, mailer *utils.Mailer, cfg *helper.AppConfig) *EmailService {
 	return &EmailService{
 		repo:        repo,
 		queue:       q,
 		companyRepo: companyRepo,
 		mailer:      mailer,
-		appBaseURL:  strings.TrimRight(appBaseURL, "/"),
+		appBaseURL:  strings.TrimRight(cfg.AppBaseURL, "/"),
+		productURL:  strings.TrimSpace(cfg.ProductURL),
+		trialURL:    strings.TrimSpace(cfg.TrialStartURL),
+		upgradeURL:  strings.TrimSpace(cfg.UpgradeURL),
+		feedbackURL: strings.TrimSpace(cfg.FeedbackURL),
 	}
 }
 
@@ -107,8 +115,8 @@ func (s *EmailService) SendBatchDirect(ctx context.Context, companies []models.C
 			continue
 		}
 
-		subject := renderEmailTemplate(template.Subject, company, cfg)
-		body := renderEmailTemplate(template.Body, company, cfg)
+		subject := s.renderEmailTemplate(template.Subject, company, cfg)
+		body := s.renderEmailTemplate(template.Body, company, cfg)
 
 		sendErr := s.mailer.Send(utils.EmailMessage{
 			To:      company.Email,
@@ -167,8 +175,8 @@ func (s *EmailService) PreQueueNextBatch(ctx context.Context, companies []models
 			continue
 		}
 
-		subject := renderEmailTemplate(template.Subject, company, cfg)
-		body := renderEmailTemplate(template.Body, company, cfg)
+		subject := s.renderEmailTemplate(template.Subject, company, cfg)
+		body := s.renderEmailTemplate(template.Body, company, cfg)
 
 		logEntry := &models.EmailLog{
 			CompanyID:   company.ID,
@@ -231,8 +239,8 @@ func (s *EmailService) QueueOutreachEmails(ctx context.Context, companies []mode
 			continue
 		}
 
-		subject := renderEmailTemplate(template.Subject, c, cfg)
-		body := renderEmailTemplate(template.Body, c, cfg)
+		subject := s.renderEmailTemplate(template.Subject, c, cfg)
+		body := s.renderEmailTemplate(template.Body, c, cfg)
 
 		entry := &models.EmailLog{
 			CompanyID:   c.ID,
@@ -293,8 +301,8 @@ func (s *EmailService) QueueEmailForCompany(ctx context.Context, company models.
 		return fmt.Errorf("template not found for type: %s", emailType)
 	}
 
-	subject := renderEmailTemplate(template.Subject, company, cfg)
-	body := renderEmailTemplate(template.Body, company, cfg)
+	subject := s.renderEmailTemplate(template.Subject, company, cfg)
+	body := s.renderEmailTemplate(template.Body, company, cfg)
 
 	sendErr := s.mailer.Send(utils.EmailMessage{
 		To:      company.Email,
@@ -480,8 +488,8 @@ func (s *EmailService) sendDirectOutreach(ctx context.Context, company models.Co
 		return fmt.Errorf("outreach template not found")
 	}
 
-	subject := renderEmailTemplate(template.Subject, company, cfg)
-	body := renderEmailTemplate(template.Body, company, cfg)
+	subject := s.renderEmailTemplate(template.Subject, company, cfg)
+	body := s.renderEmailTemplate(template.Body, company, cfg)
 
 	sendErr := s.mailer.Send(utils.EmailMessage{
 		To:      company.Email,
@@ -514,8 +522,8 @@ func (s *EmailService) SendDemoConfirmation(ctx context.Context, companyID, toEm
 	cInfo := models.CompanyInfo{ID: companyID, Name: companyName, Email: toEmail, ContactPerson: toName}
 	cfg.AppBaseURL = s.appBaseURL
 
-	subject := renderEmailTemplate(template.Subject, cInfo, cfg)
-	body := renderEmailTemplate(template.Body, cInfo, cfg)
+	subject := s.renderEmailTemplate(template.Subject, cInfo, cfg)
+	body := s.renderEmailTemplate(template.Body, cInfo, cfg)
 	body = strings.ReplaceAll(body, "{{scheduled_at}}", scheduledAt.Format("Monday, January 2, 2006 at 3:04 PM UTC"))
 	body = strings.ReplaceAll(body, "{{meeting_link}}", meetingLink)
 
@@ -572,7 +580,7 @@ func (s *EmailService) ResetCompanyOutreach(ctx context.Context, companyID strin
 	return s.repo.ResetCompanyOutreach(ctx, companyID)
 }
 
-func renderEmailTemplate(tmpl string, c models.CompanyInfo, cfg *models.EmailConfig) string {
+func (s *EmailService) renderEmailTemplate(tmpl string, c models.CompanyInfo, cfg *models.EmailConfig) string {
 	baseURL := strings.TrimRight(cfg.AppBaseURL, "/")
 
 	// Trial-specific links (used in trial_conversion email)
@@ -589,15 +597,15 @@ func renderEmailTemplate(tmpl string, c models.CompanyInfo, cfg *models.EmailCon
 		"{{industry}}", c.Industry,
 		"{{company_size}}", c.Size,
 		"{{scheduling_link}}", cfg.SchedulingLink,
-		"{{product_link}}", "https://employeegalaxy.com/employee/home/",
+		"{{product_link}}", s.productURL,
 		"{{interested_link}}", fmt.Sprintf("%s/interest/respond?company_id=%s&action=interested", baseURL, c.ID),
 		"{{not_interested_link}}", fmt.Sprintf("%s/interest/respond?company_id=%s&action=not_interested", baseURL, c.ID),
 		"{{trial_interested_link}}", trialInterestedLink,
 		"{{trial_not_interested_link}}", trialNotInterestedLink,
 		"{{schedule_form_link}}", fmt.Sprintf("%s/demo/book", baseURL),
-		"{{trial_link}}", "https://app.aisales.io/trial/start",
-		"{{upgrade_link}}", "https://app.aisales.io/pricing",
-		"{{feedback_link}}", "https://app.aisales.io/feedback",
+		"{{trial_link}}", s.trialURL,
+		"{{upgrade_link}}", s.upgradeURL,
+		"{{feedback_link}}", s.feedbackURL,
 	)
 	return r.Replace(tmpl)
 }

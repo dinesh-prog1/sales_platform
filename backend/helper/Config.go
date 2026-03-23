@@ -10,8 +10,13 @@ import (
 // AppConfig holds all application configuration.
 type AppConfig struct {
 	Port               string
+	RuntimeRole        string
 	Environment        string
 	AppBaseURL         string
+	ProductURL         string
+	TrialStartURL      string
+	UpgradeURL         string
+	FeedbackURL        string
 	JWTSecret          string
 	AdminAPIToken      string
 	AdminEmail         string
@@ -49,8 +54,13 @@ func LoadConfig() (*AppConfig, error) {
 
 	cfg := &AppConfig{
 		Port:               getEnv("PORT", "8080"),
+		RuntimeRole:        normalizeRuntimeRole(getEnv("RUNTIME_ROLE", "api")),
 		Environment:        getEnv("ENVIRONMENT", "development"),
 		AppBaseURL:         getEnv("APP_BASE_URL", "http://localhost:3000"),
+		ProductURL:         getEnv("PRODUCT_URL", "https://employeegalaxy.com/employee/home/"),
+		TrialStartURL:      getEnv("TRIAL_START_URL", "https://app.aisales.io/trial/start"),
+		UpgradeURL:         getEnv("UPGRADE_URL", "https://app.aisales.io/pricing"),
+		FeedbackURL:        getEnv("FEEDBACK_URL", "https://app.aisales.io/feedback"),
 		JWTSecret:          getEnv("JWT_SECRET", "dev-secret-key"),
 		AdminAPIToken:      getEnv("ADMIN_API_TOKEN", ""),
 		AdminEmail:         getEnv("ADMIN_EMAIL", "admin@localhost"),
@@ -106,16 +116,41 @@ func getEnvList(key string, fallback []string) []string {
 }
 
 func validateConfig(cfg *AppConfig) error {
-	if strings.TrimSpace(cfg.AdminPassword) == "" {
-		return fmt.Errorf("ADMIN_PASSWORD is required")
+	switch cfg.RuntimeRole {
+	case "api", "worker", "scheduler", "all":
+	default:
+		return fmt.Errorf("RUNTIME_ROLE must be one of: api, worker, scheduler, all")
+	}
+
+	switch cfg.RuntimeRole {
+	case "api", "all":
+		if strings.TrimSpace(cfg.AdminPassword) == "" {
+			return fmt.Errorf("ADMIN_PASSWORD is required for RUNTIME_ROLE=%s", cfg.RuntimeRole)
+		}
+		if strings.TrimSpace(cfg.AdminEmail) == "" {
+			return fmt.Errorf("ADMIN_EMAIL is required for RUNTIME_ROLE=%s", cfg.RuntimeRole)
+		}
 	}
 	if strings.EqualFold(cfg.Environment, "production") {
-		if strings.TrimSpace(cfg.AdminEmail) == "" {
-			return fmt.Errorf("ADMIN_EMAIL is required when ENVIRONMENT=production")
-		}
-		if strings.TrimSpace(cfg.JWTSecret) == "" || cfg.JWTSecret == "dev-secret-key" || cfg.JWTSecret == "change-this" {
+		if (cfg.RuntimeRole == "api" || cfg.RuntimeRole == "all") &&
+			(strings.TrimSpace(cfg.JWTSecret) == "" || cfg.JWTSecret == "dev-secret-key" || cfg.JWTSecret == "change-this") {
 			return fmt.Errorf("JWT_SECRET must be set to a strong secret when ENVIRONMENT=production")
 		}
 	}
 	return nil
+}
+
+func normalizeRuntimeRole(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "api":
+		return "api"
+	case "worker":
+		return "worker"
+	case "scheduler":
+		return "scheduler"
+	case "all":
+		return "all"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
 }

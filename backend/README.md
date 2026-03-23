@@ -44,15 +44,18 @@ The API is built with:
 |   |-- excel/             # Excel parsing for company uploads
 |   |-- mailer/            # SMTP email sender
 |   `-- queue/             # Redis or in-memory queue abstraction
-`-- main.go                # API entrypoint
+|-- main.go                # Combined local/dev entrypoint
+`-- cmd/scheduler/         # Dedicated scheduler entrypoint
 ```
 
 ## Runtime Architecture
 
-The application has two executable flows:
+The application has four executable flows:
 
-- `main.go`: starts the HTTP API, applies migrations, starts the queue, initializes services, and launches the email worker plus scheduled automation.
-- `cmd/worker/main.go`: separate worker entrypoint intended to process queued emails.
+- `cmd/api/main.go`: HTTP API only.
+- `cmd/worker/main.go`: dedicated email worker.
+- `cmd/scheduler/main.go`: dedicated timed jobs runner.
+- `main.go`: combined local/dev entrypoint that runs API, worker, and scheduler together.
 
 Core runtime behavior:
 
@@ -77,8 +80,15 @@ Copy `.env.example` into `.env` and adjust values:
 
 ```env
 PORT=8080
+RUNTIME_ROLE=api
 ENVIRONMENT=development
 APP_BASE_URL=http://localhost:3000
+PRODUCT_URL=https://your-product-domain
+TRIAL_START_URL=https://your-product-domain/trial/start
+UPGRADE_URL=https://your-product-domain/pricing
+FEEDBACK_URL=https://your-product-domain/feedback
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=change-this-password
 JWT_SECRET=change-this
 DATABASE_URL=postgres://postgres:password@localhost:5432/aisales?sslmode=disable
 REDIS_URL=redis://:aisales_redis_secret@localhost:6379/0
@@ -93,7 +103,7 @@ SCHEDULING_LINK=https://calendly.com/your-link
 ### Run The API
 
 ```bash
-go run .
+go run ./cmd/api
 ```
 
 ### Run The Worker
@@ -102,11 +112,18 @@ go run .
 go run ./cmd/worker
 ```
 
+### Run The Scheduler
+
+```bash
+go run ./cmd/scheduler
+```
+
 ### Build Binaries
 
 ```bash
-go build -o backend.exe .
+go build -o api.exe ./cmd/api
 go build -o worker.exe ./cmd/worker
+go build -o scheduler.exe ./cmd/scheduler
 ```
 
 ## API Overview

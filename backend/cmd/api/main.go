@@ -14,7 +14,6 @@ import (
 	"github.com/aisales/backend/helper"
 	"github.com/aisales/backend/repository"
 	"github.com/aisales/backend/routers"
-	"github.com/aisales/backend/scheduler"
 	"github.com/aisales/backend/service"
 	"github.com/aisales/backend/utils"
 )
@@ -70,7 +69,7 @@ func main() {
 
 	// Services
 	companySvc := service.NewCompanyService(companyRepo)
-	emailSvc := service.NewEmailService(emailRepo, q, companyRepo, m, cfg.AppBaseURL)
+	emailSvc := service.NewEmailService(emailRepo, q, companyRepo, m, cfg)
 	demoSvc := service.NewDemoService(demoRepo, companyRepo)
 	demoSvc.SetEmailSender(emailSvc)
 	demoSvc.SetAppBaseURL(cfg.AppBaseURL)
@@ -92,14 +91,6 @@ func main() {
 
 	// Router
 	httpHandler := routers.Build(authCtrl, companyCtrl, emailCtrl, demoCtrl, trialCtrl, interestCtrl, analyticsCtrl, subscriptionCtrl, cfg)
-
-	// Scheduler
-	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)
-	go sched.Start(ctx)
-
-	// Email worker (in same process for simplicity; production uses cmd/worker)
-	worker := scheduler.NewEmailWorker(emailRepo, companyRepo, q, m)
-	go worker.Start(ctx)
 
 	// HTTP server
 	srv := &http.Server{

@@ -1,0 +1,42 @@
+{
+  "family": "aisales-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/aisalesEcsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "worker",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/aisales-backend-worker:<IMAGE_TAG>",
+      "essential": true,
+      "environment": [
+        { "name": "RUNTIME_ROLE", "value": "worker" },
+        { "name": "ENVIRONMENT", "value": "production" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "<DATABASE_URL_SECRET_ARN>" },
+        { "name": "REDIS_URL", "valueFrom": "<REDIS_URL_SECRET_ARN>" },
+        { "name": "SMTP_HOST", "valueFrom": "<SMTP_HOST_ARN>" },
+        { "name": "SMTP_PORT", "valueFrom": "<SMTP_PORT_ARN>" },
+        { "name": "SMTP_USER", "valueFrom": "<SMTP_USER_ARN>" },
+        { "name": "SMTP_PASS", "valueFrom": "<SMTP_PASS_ARN>" },
+        { "name": "SMTP_FROM", "valueFrom": "<SMTP_FROM_ARN>" },
+        { "name": "APP_BASE_URL", "valueFrom": "<APP_BASE_URL_ARN>" },
+        { "name": "PRODUCT_URL", "valueFrom": "<PRODUCT_URL_ARN>" },
+        { "name": "TRIAL_START_URL", "valueFrom": "<TRIAL_START_URL_ARN>" },
+        { "name": "UPGRADE_URL", "valueFrom": "<UPGRADE_URL_ARN>" },
+        { "name": "FEEDBACK_URL", "valueFrom": "<FEEDBACK_URL_ARN>" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/aisales-worker",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

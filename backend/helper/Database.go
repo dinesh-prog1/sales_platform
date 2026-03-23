@@ -44,6 +44,19 @@ func (db *DB) Close() {
 	db.Pool.Close()
 }
 
+// TryAdvisoryLock attempts to acquire a process-wide PostgreSQL advisory lock.
+func (db *DB) TryAdvisoryLock(ctx context.Context, key int64) (bool, error) {
+	var locked bool
+	err := db.Pool.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, key).Scan(&locked)
+	return locked, err
+}
+
+// UnlockAdvisoryLock releases a previously acquired PostgreSQL advisory lock.
+func (db *DB) UnlockAdvisoryLock(ctx context.Context, key int64) error {
+	_, err := db.Pool.Exec(ctx, `SELECT pg_advisory_unlock($1)`, key)
+	return err
+}
+
 // ApplyMigrations runs each migration file exactly once, tracking applied
 // migrations in a schema_migrations table. Safe to call on every startup.
 func ApplyMigrations(ctx context.Context, db *DB) error {

@@ -70,7 +70,7 @@ func main() {
 
 	// Services
 	companySvc := service.NewCompanyService(companyRepo)
-	emailSvc := service.NewEmailService(emailRepo, q, companyRepo, m, cfg.AppBaseURL)
+	emailSvc := service.NewEmailService(emailRepo, q, companyRepo, m, cfg)
 	demoSvc := service.NewDemoService(demoRepo, companyRepo)
 	demoSvc.SetEmailSender(emailSvc)
 	demoSvc.SetAppBaseURL(cfg.AppBaseURL)
@@ -99,7 +99,7 @@ func main() {
 	go worker.Start(ctx)
 
 	// Pipeline scheduler
-	sched := scheduler.NewEmailScheduler(companySvc, emailSvc, trialSvc, demoSvc)
+	sched := scheduler.NewEmailScheduler(db, companySvc, emailSvc, trialSvc, demoSvc)
 	go sched.Start(ctx)
 
 	// Controllers

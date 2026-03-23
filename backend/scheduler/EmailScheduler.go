@@ -5,12 +5,16 @@ import (
 	"log"
 	"time"
 
+	"github.com/aisales/backend/helper"
 	"github.com/aisales/backend/models"
 	"github.com/aisales/backend/service"
 )
 
+const schedulerAdvisoryLockKey int64 = 882001
+
 // EmailScheduler runs periodic outreach batches, trial reminders, and demo auto-completion.
 type EmailScheduler struct {
+	db         *helper.DB
 	companySvc *service.CompanyService
 	emailSvc   *service.EmailService
 	trialSvc   *service.TrialService
@@ -18,12 +22,14 @@ type EmailScheduler struct {
 }
 
 func NewEmailScheduler(
+	db *helper.DB,
 	companySvc *service.CompanyService,
 	emailSvc *service.EmailService,
 	trialSvc *service.TrialService,
 	demoSvc *service.DemoService,
 ) *EmailScheduler {
 	return &EmailScheduler{
+		db:         db,
 		companySvc: companySvc,
 		emailSvc:   emailSvc,
 		trialSvc:   trialSvc,
@@ -33,6 +39,26 @@ func NewEmailScheduler(
 
 // Start launches all background scheduler goroutines. Blocks until ctx is cancelled.
 func (s *EmailScheduler) Start(ctx context.Context) {
+	if s.db != nil {
+		locked, err := s.db.TryAdvisoryLock(ctx, schedulerAdvisoryLockKey)
+		if err != nil {
+			log.Printf("[EmailScheduler] Failed to acquire advisory lock: %v", err)
+			return
+		}
+		if !locked {
+			log.Println("[EmailScheduler] Another scheduler instance already holds the advisory lock; staying idle")
+			<-ctx.Done()
+			return
+		}
+		defer func() {
+			unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := s.db.UnlockAdvisoryLock(unlockCtx, schedulerAdvisoryLockKey); err != nil {
+				log.Printf("[EmailScheduler] Failed to release advisory lock: %v", err)
+			}
+		}()
+	}
+
 	go s.runOutreachBatchLoop(ctx)
 	go s.runTrialReminderLoop(ctx)
 	go s.runTrialExpiryLoop(ctx)

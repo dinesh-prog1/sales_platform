@@ -1,0 +1,63 @@
+{
+  "family": "aisales-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/aisalesEcsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/aisales-backend-api:<IMAGE_TAG>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "RUNTIME_ROLE", "value": "api" },
+        { "name": "ENVIRONMENT", "value": "production" },
+        { "name": "PORT", "value": "8080" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "<DATABASE_URL_SECRET_ARN>" },
+        { "name": "REDIS_URL", "valueFrom": "<REDIS_URL_SECRET_ARN>" },
+        { "name": "JWT_SECRET", "valueFrom": "<JWT_SECRET_ARN>" },
+        { "name": "ADMIN_EMAIL", "valueFrom": "<ADMIN_EMAIL_ARN>" },
+        { "name": "ADMIN_PASSWORD", "valueFrom": "<ADMIN_PASSWORD_ARN>" },
+        { "name": "ADMIN_API_TOKEN", "valueFrom": "<ADMIN_API_TOKEN_ARN>" },
+        { "name": "SMTP_HOST", "valueFrom": "<SMTP_HOST_ARN>" },
+        { "name": "SMTP_PORT", "valueFrom": "<SMTP_PORT_ARN>" },
+        { "name": "SMTP_USER", "valueFrom": "<SMTP_USER_ARN>" },
+        { "name": "SMTP_PASS", "valueFrom": "<SMTP_PASS_ARN>" },
+        { "name": "SMTP_FROM", "valueFrom": "<SMTP_FROM_ARN>" },
+        { "name": "APP_BASE_URL", "valueFrom": "<APP_BASE_URL_ARN>" },
+        { "name": "CORS_ALLOWED_ORIGINS", "valueFrom": "<CORS_ALLOWED_ORIGINS_ARN>" },
+        { "name": "PRODUCT_URL", "valueFrom": "<PRODUCT_URL_ARN>" },
+        { "name": "TRIAL_START_URL", "valueFrom": "<TRIAL_START_URL_ARN>" },
+        { "name": "UPGRADE_URL", "valueFrom": "<UPGRADE_URL_ARN>" },
+        { "name": "FEEDBACK_URL", "valueFrom": "<FEEDBACK_URL_ARN>" },
+        { "name": "GOOGLE_SERVICE_ACCOUNT_JSON", "valueFrom": "<GOOGLE_SERVICE_ACCOUNT_JSON_ARN>" },
+        { "name": "GOOGLE_CALENDAR_ID", "valueFrom": "<GOOGLE_CALENDAR_ID_ARN>" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/aisales-api",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 20
+      }
+    }
+  ]
+}
