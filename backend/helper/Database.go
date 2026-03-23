@@ -60,8 +60,19 @@ func (db *DB) UnlockAdvisoryLock(ctx context.Context, key int64) error {
 // ApplyMigrations runs each migration file exactly once, tracking applied
 // migrations in a schema_migrations table. Safe to call on every startup.
 func ApplyMigrations(ctx context.Context, db *DB) error {
+	const migrationLockKey int64 = 20260323
+
+	if _, err := db.Pool.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
+		return fmt.Errorf("acquire migration advisory lock: %w", err)
+	}
+	defer func() {
+		if err := db.UnlockAdvisoryLock(context.Background(), migrationLockKey); err != nil {
+			log.Printf("unlock migration advisory lock: %v", err)
+		}
+	}()
+
 	// Ensure the tracking table exists.
-	_, err := db.Pool.Exec(ctx, `
+	_, err = db.Pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			filename   TEXT PRIMARY KEY,
 			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
