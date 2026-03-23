@@ -63,6 +63,8 @@ func isPublicRoute(method, path string) bool {
 		return true
 	case method == http.MethodGet && path == "/api/v1":
 		return true
+	case method == http.MethodOptions && strings.HasPrefix(path, "/api/v1/"):
+		return true
 	case method == http.MethodPost && path == "/api/v1/auth/login":
 		return true
 	case method == http.MethodPost && path == "/api/v1/emails/respond-outreach":
